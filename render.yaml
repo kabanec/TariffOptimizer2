@@ -11,7 +11,9 @@ services:
         value: 3.11.0
       - key: SECRET_KEY
         sync: false
-      - key: AVATAX_BEARER_TOKEN
+      - key: AVALARA_USERNAME
+        sync: false
+      - key: AVALARA_PASSWORD
         sync: false
       - key: AVALARA_COMPANY_ID
         value: 2000099295

@@ -26,8 +26,9 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 CORS(app)
 
 # Load API keys and credentials
-# AVATAX_BEARER_TOKEN should be in format "accountId:licenseKey" for Basic Auth
-AVATAX_BEARER_TOKEN = os.getenv('AVATAX_BEARER_TOKEN')
+# For AvaTax Global Compliance API
+AVALARA_USERNAME = os.getenv('AVALARA_USERNAME') or os.getenv('AVATAX_BEARER_TOKEN', '').split(':')[0] if ':' in os.getenv('AVATAX_BEARER_TOKEN', '') else None
+AVALARA_PASSWORD = os.getenv('AVALARA_PASSWORD') or os.getenv('AVATAX_BEARER_TOKEN', '').split(':', 1)[1] if ':' in os.getenv('AVATAX_BEARER_TOKEN', '') else None
 AVALARA_COMPANY_ID = os.getenv('AVALARA_COMPANY_ID', '2000099295')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
@@ -43,10 +44,10 @@ def get_openai_client():
         _openai_client = OpenAI(api_key=OPENAI_API_KEY)
     return _openai_client
 
-# AvaTax endpoints
+# AvaTax endpoints - Global Compliance API for landed cost calculations
 AVATAX_ENDPOINTS = {
-    'sandbox': 'https://sandbox-rest.avatax.com/api/v2/transactions/create',
-    'production': 'https://rest.avatax.com/api/v2/transactions/create'
+    'sandbox': f'https://quoting.xbo.dev.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance',
+    'production': f'https://quoting.xbo.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance'
 }
 
 # Learnings storage
@@ -233,84 +234,90 @@ Focus: Duties, taxes, HS codes, tax codes, rates, summary details, country rules
     return base_prompt
 
 
-def call_avatax_api(environment, request_data, bearer_token):
-    """Call AvaTax API with the provided request"""
+def call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport):
+    """Call AvaTax Global Compliance API for landed cost calculation"""
     try:
+        import base64
+
         endpoint = AVATAX_ENDPOINTS.get(environment)
         if not endpoint:
             return {'error': 'Invalid environment specified'}
 
-        logger.info(f"Calling AvaTax API - Environment: {environment}")
-        logger.info(f"Request data: {json.dumps(request_data, indent=2)}")
+        if not AVALARA_USERNAME or not AVALARA_PASSWORD:
+            return {'error': 'Avalara credentials not configured'}
+
+        logger.info(f"Calling AvaTax Global Compliance API - Environment: {environment}")
         logger.info(f"Endpoint: {endpoint}")
-        logger.info(f"Bearer token present: {bool(bearer_token)}")
+        logger.info(f"HS Code: {hs_code}, Origin: {origin_country}, Destination: {destination_country}")
 
-        # AvaTax uses Basic Authentication
-        # Bearer token format should be "username:password" for Basic Auth
-        if ':' in bearer_token:
-            # Basic Auth with username:password
-            username, password = bearer_token.split(':', 1)
-            logger.info(f"Using Basic Auth with username: {username[:4]}...{username[-4:] if len(username) > 8 else ''}")
-
-            # AvaTax API requires Basic Auth - encode credentials
-            import base64
-            credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
-
-            response = requests.post(
-                endpoint,
-                json=request_data,
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Basic {credentials}'
+        # Build Global Compliance API request (matching sample code format)
+        payload = {
+            "id": "tariff-lookup",
+            "companyId": int(AVALARA_COMPANY_ID),
+            "currency": "USD",
+            "sellerCode": "TARIFF_LOOKUP",
+            "shipFrom": {"country": origin_country},
+            "destinations": [{
+                "shipTo": {
+                    "country": destination_country,
+                    "region": "CA" if destination_country == "US" else ""
                 },
-                timeout=30
-            )
-        else:
-            # Try Bearer token
-            logger.info(f"Using Bearer token")
-            response = requests.post(
-                endpoint,
-                json=request_data,
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {bearer_token}'
+                "parameters": [
+                    {"name": "SPECIAL_CALC2", "value": "DUTY_ONLY", "unit": ""},
+                    {"name": "SHIPPING", "value": "3", "unit": "USD"},
+                    {"name": "HANDLING", "value": "5", "unit": "USD"},
+                    {"name": "INSURANCE", "value": "3", "unit": "USD"}
+                ],
+                "taxRegistered": False
+            }],
+            "lines": [{
+                "lineNumber": 1,
+                "quantity": 1,
+                "preferenceProgramApplicable": False,
+                "item": {
+                    "itemCode": "1",
+                    "description": f"HS Code {hs_code}",
+                    "itemGroup": "General",
+                    "classifications": [{"country": "DE", "hscode": hs_code}],
+                    "classificationParameters": [
+                        {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"}
+                    ],
+                    "parameters": []
                 },
-                timeout=30
-            )
+                "classificationParameters": [
+                    {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"},
+                    {"name": "length", "value": "10", "unit": "in"},
+                    {"name": "width", "value": "6", "unit": "in"},
+                    {"name": "height", "value": "4", "unit": "in"},
+                    {"name": "weight", "value": "1.11", "unit": "lb"},
+                    {"name": "SHIPPING", "value": 8.88, "unit": "USD"},
+                    {"name": "HANDLING", "value": 3.33, "unit": "USD"},
+                    {"name": "INSURANCE", "value": 2.22, "unit": "USD"}
+                ]
+            }],
+            "type": "QUOTE_MAXIMUM",
+            "storeMerchandiseTypes": ["General"],
+            "disableCalculationSummary": False,
+            "restrictionsCheck": True,
+            "program": "Regular"
+        }
+
+        logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
+
+        # Use Basic Authentication
+        credentials = base64.b64encode(f"{AVALARA_USERNAME}:{AVALARA_PASSWORD}".encode()).decode()
+        headers = {
+            "Authorization": f"Basic {credentials}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
 
         logger.info(f"Response status: {response.status_code}")
-        logger.info(f"Response body: {response.text[:1000]}")
+        logger.info(f"Response body: {response.text[:2000]}")
 
         if response.status_code in [200, 201]:
             return response.json()
-        elif response.status_code == 400:
-            try:
-                error_data = response.json()
-                error_details = error_data.get('error', {})
-                error_messages = []
-
-                # Extract detailed error messages
-                if isinstance(error_details, dict):
-                    if 'message' in error_details:
-                        error_messages.append(error_details['message'])
-                    if 'details' in error_details:
-                        for detail in error_details.get('details', []):
-                            error_messages.append(detail.get('description', str(detail)))
-
-                error_msg = ' | '.join(error_messages) if error_messages else 'Validation failed'
-
-                return {
-                    'error': f"AvaTax validation error: {error_msg}",
-                    'details': response.text,
-                    'status_code': 400,
-                    'full_response': error_data
-                }
-            except:
-                return {
-                    'error': f"AvaTax validation error: {response.text}",
-                    'details': response.text,
-                    'status_code': 400
-                }
         else:
             try:
                 error_data = response.json()
@@ -529,40 +536,8 @@ def api_tariff_lookup():
         if not all([hs_code, origin_country, destination_country, entry_date]):
             return jsonify({'error': 'Missing required fields'}), 400
 
-        # Build AvaTax request
-        avatax_request = {
-            'companyCode': AVALARA_COMPANY_ID,
-            'type': 'SalesOrder',
-            'date': entry_date,
-            'customerCode': 'TARIFF_LOOKUP',
-            'addresses': {
-                'ShipFrom': {
-                    'country': origin_country
-                },
-                'ShipTo': {
-                    'country': destination_country,
-                    'region': 'CA' if destination_country == 'US' else '',
-                    'postalCode': '90210' if destination_country == 'US' else ''
-                }
-            },
-            'lines': [{
-                'number': '1',
-                'quantity': 1,
-                'amount': shipment_value,
-                'hsCode': hs_code,
-                'description': f'HS Code {hs_code}',
-                'parameters': [
-                    {'Name': 'ModeOfTransport', 'Value': mode_of_transport}
-                ]
-            }]
-        }
-
-        # Call AvaTax API
-        bearer_token = AVATAX_BEARER_TOKEN or data.get('bearerToken')
-        if not bearer_token:
-            return jsonify({'error': 'AvaTax bearer token not configured'}), 400
-
-        api_response = call_avatax_api(environment, avatax_request, bearer_token)
+        # Call AvaTax Global Compliance API
+        api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport)
 
         if 'error' in api_response:
             logger.error(f"AvaTax API Error: {api_response}")
@@ -573,29 +548,68 @@ def api_tariff_lookup():
                 'full_response': api_response.get('full_response')
             }), api_response.get('status_code', 500)
 
-        # Parse duty breakdown
+        # Parse Global Compliance API response
         duty_breakdown = []
         punitive_tariffs = []
 
-        if 'summary' in api_response:
-            for summary_item in api_response['summary']:
-                tax_name = summary_item.get('taxName', '')
-                tax_amount = summary_item.get('tax', 0)
-                rate = summary_item.get('rate', 0)
+        try:
+            # Extract line data from Global Compliance API response
+            lines = api_response.get('globalCompliance', [{}])[0].get('quote', {}).get('lines', [])
 
-                duty_info = {
-                    'taxName': tax_name,
-                    'tax': tax_amount,
-                    'rate': rate,
-                    'description': get_tax_description(tax_name)
-                }
+            if lines:
+                line = lines[0]
+                duty_calc = line.get("calculationSummary", {}).get("dutyCalculationSummary", [])
+                cost_lines = line.get("costLines", [])
 
-                # Check if it's a punitive tariff (Chapter 98/99 or Section 301/232)
-                if is_punitive_tariff(tax_name):
-                    duty_info['explanation'] = get_punitive_explanation(tax_name)
-                    punitive_tariffs.append(duty_info)
+                # Check if duty de minimis was applied
+                duty_applied = next((d.get("value") for d in duty_calc if d.get("name") == "DUTY_DEMINIMIS_APPLIED"), "false")
+
+                if duty_applied == "true":
+                    duty_rate = 0.0
+                    duty_breakdown.append({
+                        'taxName': 'Duty',
+                        'tax': 0.0,
+                        'rate': 0.0,
+                        'description': 'De Minimis exemption applied - no duty charged'
+                    })
                 else:
-                    duty_breakdown.append(duty_info)
+                    # Extract duty rate
+                    duty_rate = next((float(d.get("value", 0)) for d in duty_calc if d.get("name") == "RATE"), 0.0)
+
+                    # Parse cost lines for duties and taxes
+                    for cost_line in cost_lines:
+                        cost_type = cost_line.get('type', '')
+                        tax_name = cost_line.get('taxName', cost_type)
+                        amount = cost_line.get('amount', 0)
+                        rate = cost_line.get('rate', 0)
+
+                        duty_info = {
+                            'taxName': tax_name,
+                            'tax': amount,
+                            'rate': rate * 100 if rate else duty_rate * 100,  # Convert to percentage
+                            'description': get_tax_description(tax_name)
+                        }
+
+                        # Check if it's a punitive tariff (Chapter 98/99 or Section 301/232)
+                        if is_punitive_tariff(tax_name):
+                            duty_info['explanation'] = get_punitive_explanation(tax_name)
+                            punitive_tariffs.append(duty_info)
+                        else:
+                            duty_breakdown.append(duty_info)
+
+                # If no cost lines but we have duty rate, add it
+                if not cost_lines and duty_rate > 0:
+                    duty_breakdown.append({
+                        'taxName': 'Duty',
+                        'tax': shipment_value * duty_rate,
+                        'rate': duty_rate * 100,
+                        'description': 'Standard customs duty (MFN rate)'
+                    })
+
+        except Exception as parse_error:
+            logger.error(f"Error parsing API response: {str(parse_error)}")
+            # Return raw response if parsing fails
+            pass
 
         # Build context for AI analysis
         transaction_context = {
@@ -610,7 +624,7 @@ def api_tariff_lookup():
         issue_description = f"Analyze tariff calculation for HS Code {hs_code} from {origin_country} to {destination_country}"
 
         ai_analysis = get_ai_analysis(
-            user_request=avatax_request,
+            user_request={'hs_code': hs_code, 'origin': origin_country, 'destination': destination_country, 'value': shipment_value},
             api_response=api_response,
             user_response=None,
             issue_description=issue_description,
