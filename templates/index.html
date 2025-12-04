@@ -11,6 +11,10 @@
         <header>
             <h1>Tariff Optimizer</h1>
             <p>Optimize your international shipping tariffs with AI-powered insights</p>
+            <div style="text-align: right; margin-top: 10px;">
+                <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+            </div>
         </header>
 
         <main>

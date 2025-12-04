@@ -9,6 +9,14 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: SECRET_KEY
+        sync: false
+      - key: AVATAX_BEARER_TOKEN
+        sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: AUTH_USER
+        sync: false
+      - key: AUTH_PASS
         sync: false
     healthCheckPath: /health

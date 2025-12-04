@@ -4,11 +4,13 @@ AI-powered tariff optimization application for international shipping.
 
 ## Features
 
-- Flask-based web application
-- Ready for ChatGPT API integration
-- Prepared for RAG system implementation for legal/customs documentation
+- Flask-based web application with session-based authentication
+- AvaTax API integration for tariff calculations
+- OpenAI API integration for AI-powered insights
+- User authentication system
 - Automatic deployment to Render.com via GitHub Actions
 - Health check endpoint for monitoring
+- Prepared for RAG system implementation for legal/customs documentation
 
 ## Prerequisites
 
@@ -75,10 +77,25 @@ TariffOptimizer/
 
 Create a `.env` file in the root directory with the following variables:
 
-```
+```bash
+# Flask Secret Key (for session management)
+SECRET_KEY=your-random-secret-key-change-this-in-production
+
+# AvaTax API Bearer Token
+AVATAX_BEARER_TOKEN=your_avatax_bearer_token_here
+
+# OpenAI API Key (for ChatGPT integration)
 OPENAI_API_KEY=your_openai_api_key_here
-# Add other API keys as needed
+
+# Basic Authentication Credentials
+AUTH_USER=Admin
+AUTH_PASS=your_secure_password_here
 ```
+
+**Important:**
+- Never commit the `.env` file to Git
+- Use strong, random values for `SECRET_KEY` and `AUTH_PASS` in production
+- Set all these variables in your Render.com dashboard under Environment settings
 
 ## API Endpoints
 
