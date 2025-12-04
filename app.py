@@ -28,6 +28,7 @@ CORS(app)
 # Load API keys and credentials
 # AVATAX_BEARER_TOKEN should be in format "accountId:licenseKey" for Basic Auth
 AVATAX_BEARER_TOKEN = os.getenv('AVATAX_BEARER_TOKEN')
+AVALARA_COMPANY_ID = os.getenv('AVALARA_COMPANY_ID', '2000099295')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
 AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
@@ -524,7 +525,7 @@ def api_tariff_lookup():
 
         # Build AvaTax request
         avatax_request = {
-            'companyCode': 'DEFAULT',
+            'companyCode': AVALARA_COMPANY_ID,
             'type': 'SalesOrder',
             'date': entry_date,
             'customerCode': 'TARIFF_LOOKUP',

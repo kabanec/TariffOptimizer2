@@ -13,6 +13,8 @@ services:
         sync: false
       - key: AVATAX_BEARER_TOKEN
         sync: false
+      - key: AVALARA_COMPANY_ID
+        value: 2000099295
       - key: OPENAI_API_KEY
         sync: false
       - key: AUTH_USER
