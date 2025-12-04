@@ -245,23 +245,29 @@ def call_avatax_api(environment, request_data, bearer_token):
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"Bearer token present: {bool(bearer_token)}")
 
-        # AvaTax uses Basic Authentication, not Bearer token
+        # AvaTax uses Basic Authentication
         # Bearer token format should be "username:password" for Basic Auth
-        # If bearer_token contains ":", split it for Basic Auth
         if ':' in bearer_token:
             # Basic Auth with username:password
             username, password = bearer_token.split(':', 1)
+            logger.info(f"Using Basic Auth with username: {username[:4]}...{username[-4:] if len(username) > 8 else ''}")
+
+            # AvaTax API requires Basic Auth - encode credentials
+            import base64
+            credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
+
             response = requests.post(
                 endpoint,
                 json=request_data,
-                auth=(username, password),
                 headers={
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Basic {credentials}'
                 },
                 timeout=30
             )
         else:
-            # Try Bearer token (may not work with AvaTax)
+            # Try Bearer token
+            logger.info(f"Using Bearer token")
             response = requests.post(
                 endpoint,
                 json=request_data,
