@@ -26,6 +26,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 CORS(app)
 
 # Load API keys and credentials
+# AVATAX_BEARER_TOKEN should be in format "accountId:licenseKey" for Basic Auth
 AVATAX_BEARER_TOKEN = os.getenv('AVATAX_BEARER_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
@@ -243,15 +244,32 @@ def call_avatax_api(environment, request_data, bearer_token):
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"Bearer token present: {bool(bearer_token)}")
 
-        response = requests.post(
-            endpoint,
-            json=request_data,
-            headers={
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {bearer_token}'
-            },
-            timeout=30
-        )
+        # AvaTax uses Basic Authentication, not Bearer token
+        # Bearer token format should be "username:password" for Basic Auth
+        # If bearer_token contains ":", split it for Basic Auth
+        if ':' in bearer_token:
+            # Basic Auth with username:password
+            username, password = bearer_token.split(':', 1)
+            response = requests.post(
+                endpoint,
+                json=request_data,
+                auth=(username, password),
+                headers={
+                    'Content-Type': 'application/json'
+                },
+                timeout=30
+            )
+        else:
+            # Try Bearer token (may not work with AvaTax)
+            response = requests.post(
+                endpoint,
+                json=request_data,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {bearer_token}'
+                },
+                timeout=30
+            )
 
         logger.info(f"Response status: {response.status_code}")
         logger.info(f"Response body: {response.text[:1000]}")
