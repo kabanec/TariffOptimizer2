@@ -263,42 +263,66 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         payload = {
             "id": "tariff-lookup",
             "companyId": int(AVALARA_COMPANY_ID),
-            "currency": "USD",
             "sellerCode": "TARIFF_LOOKUP",
-            "shipFrom": {"country": origin_country},
-            "shipmentType": "postal",  # Required for postal services calculator
+            "currency": "USD",
+            "shipFrom": {
+                "region": "",
+                "country": origin_country,
+                "line1": "",
+                "city": ""
+            },
+            "shipmentType": "postal",
             "destinations": [{
                 "shipTo": {
                     "country": destination_country,
                     "region": "CA" if destination_country == "US" else ""
                 },
                 "parameters": [
-                    {"name": "SPECIAL_CALC", "value": "TAX_DUTY_INCLUDED", "unit": ""}
+                    {
+                        "name": "SPECIAL_CALC",
+                        "value": "TAX_DUTY_INCLUDED",
+                        "unit": ""
+                    }
                 ],
                 "taxRegistered": False
             }],
+            "type": "QUOTE_MEDIAN",
             "lines": [{
+                "preferenceProgramApplicable": False,
                 "lineNumber": 1,
                 "quantity": 1,
-                "preferenceProgramApplicable": False,
                 "item": {
                     "itemCode": "1",
                     "description": f"HS Code {hs_code}",
                     "itemGroup": "General",
-                    "classifications": [{"country": "DE", "hscode": hs_code_normalized}],
                     "classificationParameters": [
-                        {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"},
-                        {"name": "NETWEIGHT", "value": "2", "unit": "kg"},
-                        {"name": "coo", "value": origin_country, "unit": ""}
-                    ],
-                    "parameters": []
+                        {
+                            "name": "price",
+                            "value": str(round(shipment_value, 2)),
+                            "unit": "USD"
+                        },
+                        {
+                            "name": "NETWEIGHT",
+                            "value": "2",
+                            "unit": "kg"
+                        },
+                        {
+                            "name": "coo",
+                            "value": origin_country,
+                            "unit": ""
+                        }
+                    ]
                 }
             }],
-            "type": "QUOTE_MEDIAN",
             "disableCalculationSummary": False,
             "restrictionsCheck": True,
             "program": "Estimator",
-            "parameters": [{"name": "AUTOMATIC_HS_FALLBACK", "value": "true"}]
+            "parameters": [
+                {
+                    "name": "AUTOMATIC_HS_FALLBACK",
+                    "value": "true"
+                }
+            ]
         }
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
