@@ -239,6 +239,9 @@ def call_avatax_api(environment, request_data, bearer_token):
             return {'error': 'Invalid environment specified'}
 
         logger.info(f"Calling AvaTax API - Environment: {environment}")
+        logger.info(f"Request data: {json.dumps(request_data, indent=2)}")
+        logger.info(f"Endpoint: {endpoint}")
+        logger.info(f"Bearer token present: {bool(bearer_token)}")
 
         response = requests.post(
             endpoint,
@@ -250,22 +253,54 @@ def call_avatax_api(environment, request_data, bearer_token):
             timeout=30
         )
 
+        logger.info(f"Response status: {response.status_code}")
+        logger.info(f"Response body: {response.text[:1000]}")
+
         if response.status_code in [200, 201]:
             return response.json()
         elif response.status_code == 400:
-            error_data = response.json()
-            error_details = error_data.get('error', {})
-            return {
-                'error': f"AvaTax validation error: {error_details.get('message', 'Validation failed')}",
-                'details': response.text,
-                'status_code': 400
-            }
+            try:
+                error_data = response.json()
+                error_details = error_data.get('error', {})
+                error_messages = []
+
+                # Extract detailed error messages
+                if isinstance(error_details, dict):
+                    if 'message' in error_details:
+                        error_messages.append(error_details['message'])
+                    if 'details' in error_details:
+                        for detail in error_details.get('details', []):
+                            error_messages.append(detail.get('description', str(detail)))
+
+                error_msg = ' | '.join(error_messages) if error_messages else 'Validation failed'
+
+                return {
+                    'error': f"AvaTax validation error: {error_msg}",
+                    'details': response.text,
+                    'status_code': 400,
+                    'full_response': error_data
+                }
+            except:
+                return {
+                    'error': f"AvaTax validation error: {response.text}",
+                    'details': response.text,
+                    'status_code': 400
+                }
         else:
-            return {
-                'error': f'AvaTax API error: {response.status_code}',
-                'details': response.text,
-                'status_code': response.status_code
-            }
+            try:
+                error_data = response.json()
+                return {
+                    'error': f'AvaTax API error: {response.status_code}',
+                    'details': response.text,
+                    'status_code': response.status_code,
+                    'full_response': error_data
+                }
+            except:
+                return {
+                    'error': f'AvaTax API error: {response.status_code}',
+                    'details': response.text,
+                    'status_code': response.status_code
+                }
 
     except requests.exceptions.RequestException as e:
         logger.error(f"API request exception: {str(e)}")
@@ -505,7 +540,13 @@ def api_tariff_lookup():
         api_response = call_avatax_api(environment, avatax_request, bearer_token)
 
         if 'error' in api_response:
-            return jsonify({'error': api_response['error']}), 500
+            logger.error(f"AvaTax API Error: {api_response}")
+            return jsonify({
+                'error': api_response.get('error'),
+                'details': api_response.get('details'),
+                'status_code': api_response.get('status_code'),
+                'full_response': api_response.get('full_response')
+            }), api_response.get('status_code', 500)
 
         # Parse duty breakdown
         duty_breakdown = []
