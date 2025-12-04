@@ -251,9 +251,13 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         if not AVALARA_USERNAME or not AVALARA_PASSWORD:
             return {'error': 'Avalara credentials not configured'}
 
+        # Normalize HS code - remove dots and limit to 8 digits
+        # Convert "3305.10.00.00" to "33051000"
+        hs_code_normalized = hs_code.replace('.', '').replace('-', '')[:8]
+
         logger.info(f"Calling AvaTax Global Compliance API - Environment: {environment}")
         logger.info(f"Endpoint: {endpoint}")
-        logger.info(f"HS Code: {hs_code}, Origin: {origin_country}, Destination: {destination_country}")
+        logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
         # Build Global Compliance API request (matching sample code format)
         payload = {
@@ -283,7 +287,7 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                     "itemCode": "1",
                     "description": f"HS Code {hs_code}",
                     "itemGroup": "General",
-                    "classifications": [{"country": "DE", "hscode": hs_code}],
+                    "classifications": [{"country": "DE", "hscode": hs_code_normalized}],
                     "classificationParameters": [
                         {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"}
                     ],
