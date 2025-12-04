@@ -4,13 +4,14 @@ AI-powered tariff optimization application for international shipping.
 
 ## Features
 
-- Flask-based web application with session-based authentication
-- AvaTax API integration for tariff calculations
-- OpenAI API integration for AI-powered insights
-- User authentication system
-- Automatic deployment to Render.com via GitHub Actions
-- Health check endpoint for monitoring
-- Prepared for RAG system implementation for legal/customs documentation
+- **Dual Authentication System**: Session-based auth for web UI, HTTP Basic Auth for API endpoints
+- **AvaTax API Integration**: Full integration with Avalara AvaTax API (sandbox & production)
+- **AI-Powered Analysis**: OpenAI GPT-3.5-turbo for intelligent tariff analysis
+- **RAG System**: Knowledge base for legal/customs documentation with context-aware AI responses
+- **Learning System**: Accumulates insights from past analyses to improve future recommendations
+- **CORS Support**: Cross-origin requests enabled for API integration
+- **Automatic Deployment**: CI/CD pipeline via GitHub Actions to Render.com
+- **Health Monitoring**: Built-in health check endpoint
 
 ## Prerequisites
 
@@ -99,10 +100,42 @@ AUTH_PASS=your_secure_password_here
 
 ## API Endpoints
 
-- `GET /` - Main landing page
-- `GET /health` - Health check endpoint
+### Web Pages (Session Auth)
+- `GET /` - Main landing page (requires login)
+- `GET /login` - Login page
+- `GET /logout` - Logout and clear session
 
-Add your custom endpoints in `app.py`.
+### API Endpoints (HTTP Basic Auth)
+- `GET /health` - Health check endpoint (public)
+- `POST /api/verify` - Verify AvaTax transaction with AI analysis
+- `POST /api/clear-session` - Clear chat history
+
+### API Usage Example
+
+```bash
+# Verify transaction with AI analysis
+curl -X POST https://tariff-optimizer2.onrender.com/api/verify \
+  -u Admin:Secret_6681940 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "environment": "sandbox",
+    "bearerToken": "your_avatax_token",
+    "issueDescription": "Verify duty calculation for electronics",
+    "userRequest": {
+      "companyCode": "DEFAULT",
+      "type": "SalesOrder",
+      "date": "2025-12-04",
+      "addresses": {
+        "ShipFrom": {"country": "CN"},
+        "ShipTo": {"country": "US"}
+      },
+      "lines": [{
+        "amount": 1000,
+        "hsCode": "8517.62.00"
+      }]
+    }
+  }'
+```
 
 ## Deployment
 

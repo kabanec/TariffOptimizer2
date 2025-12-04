@@ -1,20 +1,32 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
+from flask_cors import CORS
 from functools import wraps
 import os
+import json
 import logging
+import requests
+import secrets
+import uuid
+from datetime import timedelta, datetime
+from pathlib import Path
 from dotenv import load_dotenv
+from openai import OpenAI
 
-app = Flask(__name__)
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
+CORS(app)
 
-# Configure Flask app
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Load API keys and credentials
 AVATAX_BEARER_TOKEN = os.getenv('AVATAX_BEARER_TOKEN')
@@ -22,9 +34,50 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
 AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
 
+# AvaTax endpoints
+AVATAX_ENDPOINTS = {
+    'sandbox': 'https://sandbox-rest.avatax.com/api/v2/transactions/create',
+    'production': 'https://rest.avatax.com/api/v2/transactions/create'
+}
 
-# Authentication decorator
+# Learnings storage
+LEARNINGS_FILE = Path('learnings.json')
+MAX_LEARNINGS = 30
+
+# Knowledge base paths
+KB_PATH = Path('knowledge_base')
+KB_DE_MINIMIS = KB_PATH / 'de_minimis_values.json'
+KB_EXECUTIVE_ORDERS = KB_PATH / 'executive_orders.json'
+KB_DUTY_RULES = KB_PATH / 'duty_rules.json'
+KB_TARIFF_RANGES = KB_PATH / 'tariff_ranges.json'
+KB_TARIFF_2025 = KB_PATH / 'recent_tariff_updates.json'
+
+# Cache for knowledge base data
+_kb_cache = {}
+
+
+# HTTP Basic Auth decorator (for API endpoints)
+def auth_required(f):
+    """HTTP Basic Authentication decorator for API endpoints"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        request_id = str(uuid.uuid4())
+        auth = request.authorization
+        logger.debug(f"[{request_id}] Authorization header: {auth}")
+        if not auth:
+            logger.error(f"[{request_id}] No authorization header provided")
+            return Response('Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+        if auth.username != AUTH_USER or auth.password != AUTH_PASS:
+            logger.error(f"[{request_id}] Invalid credentials: username={auth.username}")
+            return Response('Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+        logger.debug(f"[{request_id}] Authentication successful")
+        return f(*args, **kwargs)
+    return decorated
+
+
+# Session-based auth decorator (for web pages)
 def login_required(f):
+    """Session-based authentication decorator for web pages"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('authenticated'):
@@ -33,10 +86,233 @@ def login_required(f):
     return decorated_function
 
 
-# Basic authentication check
 def check_auth(username, password):
+    """Check username and password"""
     return username == AUTH_USER and password == AUTH_PASS
 
+
+def load_kb_file(file_path):
+    """Load knowledge base file with caching"""
+    if file_path in _kb_cache:
+        return _kb_cache[file_path]
+
+    try:
+        if Path(file_path).exists():
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                _kb_cache[file_path] = data
+                return data
+    except Exception as e:
+        logger.error(f"Error loading KB file {file_path}: {e}")
+    return None
+
+
+def load_learnings():
+    """Load learnings from file"""
+    try:
+        if LEARNINGS_FILE.exists():
+            with open(LEARNINGS_FILE, 'r') as f:
+                return json.load(f)
+        return []
+    except Exception as e:
+        logger.error(f"Error loading learnings: {e}")
+        return []
+
+
+def save_learnings(learnings):
+    """Save learnings to file"""
+    try:
+        learnings = learnings[-MAX_LEARNINGS:]
+        with open(LEARNINGS_FILE, 'w') as f:
+            json.dump(learnings, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving learnings: {e}")
+
+
+def extract_transaction_context(user_request, api_response):
+    """Extract key context from transaction for RAG lookup"""
+    context = {
+        'countries': set(),
+        'hs_codes': set(),
+        'amount': 0,
+        'origin_country': None,
+        'destination_country': None,
+        'incoterm': None
+    }
+
+    addresses = user_request.get('addresses', {})
+    if 'ShipFrom' in addresses or 'shipFrom' in addresses:
+        ship_from = addresses.get('ShipFrom', addresses.get('shipFrom', {}))
+        origin = ship_from.get('country', '').upper()
+        if origin:
+            context['origin_country'] = origin
+            context['countries'].add(origin)
+
+    if 'ShipTo' in addresses or 'shipTo' in addresses:
+        ship_to = addresses.get('ShipTo', addresses.get('shipTo', {}))
+        dest = ship_to.get('country', '').upper()
+        if dest:
+            context['destination_country'] = dest
+            context['countries'].add(dest)
+
+    lines = user_request.get('lines', [])
+    for line in lines:
+        hs_code = line.get('hsCode')
+        if hs_code:
+            context['hs_codes'].add(hs_code[:2])
+        amount = line.get('amount', 0)
+        context['amount'] += amount
+
+    delivery_terms = user_request.get('deliveryTerms')
+    if delivery_terms:
+        context['incoterm'] = delivery_terms
+
+    return context
+
+
+def build_rag_context(transaction_context, issue_description):
+    """Build compact knowledge base context for the AI"""
+    context_parts = []
+
+    de_minimis = load_kb_file(KB_DE_MINIMIS)
+    exec_orders = load_kb_file(KB_EXECUTIVE_ORDERS)
+    duty_rules = load_kb_file(KB_DUTY_RULES)
+    tariff_ranges = load_kb_file(KB_TARIFF_RANGES)
+    recent_updates = load_kb_file(KB_TARIFF_2025)
+
+    if recent_updates:
+        eo_14324 = recent_updates.get('executive_orders', {}).get('eo_14324', {})
+        if eo_14324:
+            context_parts.append(f"**CRITICAL**: De Minimis ELIMINATED globally {eo_14324.get('effective_date')}. ALL shipments now dutiable.")
+
+    if recent_updates and transaction_context['origin_country']:
+        recip_eo = recent_updates.get('executive_orders', {}).get('reciprocal_tariffs_2025', {})
+        if recip_eo:
+            origin = transaction_context['origin_country']
+            country_rates = recip_eo.get('country_specific_rates', {}).get('rates_by_country', {})
+            reciprocal_rate = country_rates.get(origin, country_rates.get('Most other countries', '15%'))
+            context_parts.append(f"**Reciprocal IEEPA Tariff ({origin})**: +{reciprocal_rate} ON TOP OF MFN/Section 301/Section 232.")
+
+    if not context_parts:
+        return ""
+
+    return "\n\n**KNOWLEDGE BASE CONTEXT**:\n" + "\n".join(context_parts)
+
+
+def get_enhanced_system_prompt():
+    """Build system prompt enhanced with learnings"""
+    base_prompt = """You are an expert AvaTax cross-border tax analyst. Be BRIEF and TECHNICAL - no fluff.
+
+Your role:
+- Analyze AvaTax API responses
+- Identify duty/tax calculation issues
+- Explain discrepancies
+- Provide actionable insights on HS codes, rates, duty stacking
+
+Focus: Duties, taxes, HS codes, tax codes, rates, summary details, country rules.
+
+**Response format**: Use short sections with bullet points. Be direct and concise."""
+
+    learnings = load_learnings()
+    if learnings:
+        recent_learnings = learnings[-10:]
+        learnings_text = "\n\n**PAST LEARNINGS**:\n"
+        for idx, learning in enumerate(recent_learnings, 1):
+            learnings_text += f"{idx}. {learning['learning']}\n"
+        base_prompt += learnings_text
+
+    return base_prompt
+
+
+def call_avatax_api(environment, request_data, bearer_token):
+    """Call AvaTax API with the provided request"""
+    try:
+        endpoint = AVATAX_ENDPOINTS.get(environment)
+        if not endpoint:
+            return {'error': 'Invalid environment specified'}
+
+        logger.info(f"Calling AvaTax API - Environment: {environment}")
+
+        response = requests.post(
+            endpoint,
+            json=request_data,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {bearer_token}'
+            },
+            timeout=30
+        )
+
+        if response.status_code in [200, 201]:
+            return response.json()
+        elif response.status_code == 400:
+            error_data = response.json()
+            error_details = error_data.get('error', {})
+            return {
+                'error': f"AvaTax validation error: {error_details.get('message', 'Validation failed')}",
+                'details': response.text,
+                'status_code': 400
+            }
+        else:
+            return {
+                'error': f'AvaTax API error: {response.status_code}',
+                'details': response.text,
+                'status_code': response.status_code
+            }
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API request exception: {str(e)}")
+        return {'error': f'API request failed: {str(e)}'}
+
+
+def get_ai_analysis(user_request, api_response, user_response, issue_description, comparison, chat_history, transaction_context):
+    """Get AI analysis using OpenAI with RAG context"""
+    try:
+        system_prompt = get_enhanced_system_prompt()
+        rag_context = build_rag_context(transaction_context, issue_description)
+
+        user_prompt = f"""**Issue**: {issue_description}
+
+**Transaction**: {transaction_context['origin_country'] or '?'} → {transaction_context['destination_country'] or '?'}, ${transaction_context['amount']:.2f}
+
+**API Response Summary**:
+- Total Tax: ${api_response.get('totalTax', 0):.2f}
+- Total Amount: ${api_response.get('totalAmount', 0):.2f}
+- Lines: {len(api_response.get('lines', []))}
+"""
+
+        if rag_context:
+            user_prompt += f"\n{rag_context}"
+
+        user_prompt += """
+
+**Provide**:
+1. **Root Cause** (1-2 sentences)
+2. **Key Findings** (bullet points)
+3. **Action** (what to do)
+
+Be BRIEF."""
+
+        messages = [{"role": "system", "content": system_prompt}]
+        if chat_history:
+            messages.extend(chat_history[-4:])
+        messages.append({"role": "user", "content": user_prompt})
+
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.5
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        logger.error(f"Error getting AI analysis: {str(e)}")
+        return f"Error getting AI analysis: {str(e)}"
+
+
+# ============ ROUTES ============
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -79,17 +355,87 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 
-# Add your API endpoints here
-# Example:
-# @app.route('/api/optimize', methods=['POST'])
-# def optimize_tariff():
-#     try:
-#         data = request.json
-#         # Your tariff optimization logic here
-#         return jsonify({'result': 'success'})
-#     except Exception as e:
-#         logger.error(f"Error: {str(e)}")
-#         return jsonify({'error': str(e)}), 500
+@app.route('/api/verify', methods=['POST'])
+@auth_required
+def verify_transaction():
+    """Main endpoint to verify AvaTax transaction"""
+    try:
+        data = request.json
+        environment = data.get('environment', 'sandbox').lower()
+        user_request = data.get('userRequest')
+        user_response = data.get('userResponse')
+        issue_description = data.get('issueDescription', '')
+        bearer_token = data.get('bearerToken') or AVATAX_BEARER_TOKEN
+
+        if not user_request:
+            return jsonify({'error': 'User request is required'}), 400
+
+        if not bearer_token:
+            return jsonify({'error': 'AvaTax bearer token is required'}), 400
+
+        if isinstance(user_request, str):
+            try:
+                user_request = json.loads(user_request)
+            except json.JSONDecodeError:
+                return jsonify({'error': 'Invalid JSON in user request'}), 400
+
+        if isinstance(user_request, list) and len(user_request) > 0:
+            user_request = user_request[0]
+
+        # Call AvaTax API
+        api_response = call_avatax_api(environment, user_request, bearer_token)
+
+        if 'error' in api_response:
+            return jsonify({'error': api_response['error']}), 500
+
+        # Initialize chat history
+        if 'chat_history' not in session:
+            session['chat_history'] = []
+
+        # Extract transaction context for RAG
+        transaction_context = extract_transaction_context(user_request, api_response)
+
+        # Get AI analysis
+        ai_analysis = get_ai_analysis(
+            user_request=user_request,
+            api_response=api_response,
+            user_response=user_response,
+            issue_description=issue_description,
+            comparison=None,
+            chat_history=session['chat_history'],
+            transaction_context=transaction_context
+        )
+
+        # Store in chat history
+        session['chat_history'].append({
+            'role': 'user',
+            'content': f"Issue: {issue_description}\nRequest: {json.dumps(user_request, indent=2)}"
+        })
+        session['chat_history'].append({
+            'role': 'assistant',
+            'content': ai_analysis
+        })
+        session.modified = True
+
+        return jsonify({
+            'apiResponse': api_response,
+            'aiAnalysis': ai_analysis,
+            'success': True
+        })
+
+    except Exception as e:
+        logger.error(f"ERROR in verify_transaction: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/clear-session', methods=['POST'])
+@auth_required
+def clear_session():
+    """Clear the chat history"""
+    session.clear()
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':
