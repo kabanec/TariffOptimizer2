@@ -259,23 +259,21 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
-        # Build Global Compliance API request (matching sample code format)
+        # Build Global Compliance API request (matching postal services format)
         payload = {
             "id": "tariff-lookup",
             "companyId": int(AVALARA_COMPANY_ID),
             "currency": "USD",
             "sellerCode": "TARIFF_LOOKUP",
             "shipFrom": {"country": origin_country},
+            "shipmentType": "postal",  # Required for postal services calculator
             "destinations": [{
                 "shipTo": {
                     "country": destination_country,
                     "region": "CA" if destination_country == "US" else ""
                 },
                 "parameters": [
-                    {"name": "SPECIAL_CALC2", "value": "DUTY_ONLY", "unit": ""},
-                    {"name": "SHIPPING", "value": "3", "unit": "USD"},
-                    {"name": "HANDLING", "value": "5", "unit": "USD"},
-                    {"name": "INSURANCE", "value": "3", "unit": "USD"}
+                    {"name": "SPECIAL_CALC", "value": "TAX_DUTY_INCLUDED", "unit": ""}
                 ],
                 "taxRegistered": False
             }],
@@ -289,26 +287,18 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                     "itemGroup": "General",
                     "classifications": [{"country": "DE", "hscode": hs_code_normalized}],
                     "classificationParameters": [
-                        {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"}
+                        {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"},
+                        {"name": "NETWEIGHT", "value": "2", "unit": "kg"},
+                        {"name": "coo", "value": origin_country, "unit": ""}
                     ],
                     "parameters": []
-                },
-                "classificationParameters": [
-                    {"name": "price", "value": str(round(shipment_value, 2)), "unit": "USD"},
-                    {"name": "length", "value": "10", "unit": "in"},
-                    {"name": "width", "value": "6", "unit": "in"},
-                    {"name": "height", "value": "4", "unit": "in"},
-                    {"name": "weight", "value": "1.11", "unit": "lb"},
-                    {"name": "SHIPPING", "value": 8.88, "unit": "USD"},
-                    {"name": "HANDLING", "value": 3.33, "unit": "USD"},
-                    {"name": "INSURANCE", "value": 2.22, "unit": "USD"}
-                ]
+                }
             }],
-            "type": "QUOTE_MAXIMUM",
-            "storeMerchandiseTypes": ["General"],
+            "type": "QUOTE_MEDIAN",
             "disableCalculationSummary": False,
             "restrictionsCheck": True,
-            "program": "Regular"
+            "program": "Estimator",
+            "parameters": [{"name": "AUTOMATIC_HS_FALLBACK", "value": "true"}]
         }
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
