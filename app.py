@@ -25,14 +25,21 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 CORS(app)
 
-# Initialize OpenAI client
-openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
 # Load API keys and credentials
 AVATAX_BEARER_TOKEN = os.getenv('AVATAX_BEARER_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
 AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
+
+# Initialize OpenAI client lazily
+_openai_client = None
+
+def get_openai_client():
+    """Get or create OpenAI client instance"""
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    return _openai_client
 
 # AvaTax endpoints
 AVATAX_ENDPOINTS = {
@@ -298,7 +305,7 @@ Be BRIEF."""
             messages.extend(chat_history[-4:])
         messages.append({"role": "user", "content": user_prompt})
 
-        response = openai_client.chat.completions.create(
+        response = get_openai_client().chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=800,
