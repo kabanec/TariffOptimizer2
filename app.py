@@ -26,13 +26,18 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 CORS(app)
 
 # Load API keys and credentials
-# For AvaTax Global Compliance API
-AVALARA_USERNAME = os.getenv('AVALARA_USERNAME') or os.getenv('AVATAX_BEARER_TOKEN', '').split(':')[0] if ':' in os.getenv('AVATAX_BEARER_TOKEN', '') else None
-AVALARA_PASSWORD = os.getenv('AVALARA_PASSWORD') or os.getenv('AVATAX_BEARER_TOKEN', '').split(':', 1)[1] if ':' in os.getenv('AVATAX_BEARER_TOKEN', '') else None
+# For AvaTax Global Compliance API (matching sample code)
+AVALARA_USERNAME = os.getenv('AVALARA_USERNAME')
+AVALARA_PASSWORD = os.getenv('AVALARA_PASSWORD')
 AVALARA_COMPANY_ID = os.getenv('AVALARA_COMPANY_ID', '2000099295')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
 AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
+
+# Debug logging for credentials (without exposing sensitive data)
+logger.info(f"AVALARA_USERNAME loaded: {bool(AVALARA_USERNAME)}")
+logger.info(f"AVALARA_PASSWORD loaded: {bool(AVALARA_PASSWORD)}")
+logger.info(f"AVALARA_COMPANY_ID: {AVALARA_COMPANY_ID}")
 
 # Initialize OpenAI client lazily
 _openai_client = None
