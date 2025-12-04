@@ -438,5 +438,173 @@ def clear_session():
     return jsonify({'success': True})
 
 
+@app.route('/tariff-lookup')
+@login_required
+def tariff_lookup():
+    """Tariff lookup page"""
+    return render_template('tariff_lookup.html', username=session.get('username'))
+
+
+@app.route('/api/tariff-lookup', methods=['POST'])
+def api_tariff_lookup():
+    """API endpoint for tariff lookup - no auth required for easier testing"""
+    try:
+        data = request.json
+
+        hs_code = data.get('hsCode')
+        origin_country = data.get('originCountry')
+        destination_country = data.get('destinationCountry')
+        entry_date = data.get('entryDate')
+        shipment_value = float(data.get('shipmentValue', 0))
+        mode_of_transport = data.get('modeOfTransport', 'AIR')
+        environment = data.get('environment', 'sandbox')
+
+        if not all([hs_code, origin_country, destination_country, entry_date]):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        # Build AvaTax request
+        avatax_request = {
+            'companyCode': 'DEFAULT',
+            'type': 'SalesOrder',
+            'date': entry_date,
+            'customerCode': 'TARIFF_LOOKUP',
+            'addresses': {
+                'ShipFrom': {
+                    'country': origin_country
+                },
+                'ShipTo': {
+                    'country': destination_country,
+                    'region': 'CA' if destination_country == 'US' else '',
+                    'postalCode': '90210' if destination_country == 'US' else ''
+                }
+            },
+            'lines': [{
+                'number': '1',
+                'quantity': 1,
+                'amount': shipment_value,
+                'hsCode': hs_code,
+                'description': f'HS Code {hs_code}',
+                'parameters': [
+                    {'Name': 'ModeOfTransport', 'Value': mode_of_transport}
+                ]
+            }]
+        }
+
+        # Call AvaTax API
+        bearer_token = AVATAX_BEARER_TOKEN or data.get('bearerToken')
+        if not bearer_token:
+            return jsonify({'error': 'AvaTax bearer token not configured'}), 400
+
+        api_response = call_avatax_api(environment, avatax_request, bearer_token)
+
+        if 'error' in api_response:
+            return jsonify({'error': api_response['error']}), 500
+
+        # Parse duty breakdown
+        duty_breakdown = []
+        punitive_tariffs = []
+
+        if 'summary' in api_response:
+            for summary_item in api_response['summary']:
+                tax_name = summary_item.get('taxName', '')
+                tax_amount = summary_item.get('tax', 0)
+                rate = summary_item.get('rate', 0)
+
+                duty_info = {
+                    'taxName': tax_name,
+                    'tax': tax_amount,
+                    'rate': rate,
+                    'description': get_tax_description(tax_name)
+                }
+
+                # Check if it's a punitive tariff (Chapter 98/99 or Section 301/232)
+                if is_punitive_tariff(tax_name):
+                    duty_info['explanation'] = get_punitive_explanation(tax_name)
+                    punitive_tariffs.append(duty_info)
+                else:
+                    duty_breakdown.append(duty_info)
+
+        # Build context for AI analysis
+        transaction_context = {
+            'origin_country': origin_country,
+            'destination_country': destination_country,
+            'hs_codes': {hs_code[:2]},
+            'amount': shipment_value,
+            'countries': {origin_country, destination_country}
+        }
+
+        # Get AI analysis
+        issue_description = f"Analyze tariff calculation for HS Code {hs_code} from {origin_country} to {destination_country}"
+
+        ai_analysis = get_ai_analysis(
+            user_request=avatax_request,
+            api_response=api_response,
+            user_response=None,
+            issue_description=issue_description,
+            comparison=None,
+            chat_history=[],
+            transaction_context=transaction_context
+        )
+
+        return jsonify({
+            'success': True,
+            'apiResponse': api_response,
+            'dutyBreakdown': duty_breakdown,
+            'punitiveTariffs': punitive_tariffs,
+            'aiAnalysis': ai_analysis
+        })
+
+    except Exception as e:
+        logger.error(f"Error in tariff lookup: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+def get_tax_description(tax_name):
+    """Get human-readable description for tax type"""
+    descriptions = {
+        'Duty': 'Standard customs duty (MFN rate)',
+        'Import VAT': 'Value Added Tax on imports',
+        'Import Tax': 'General import tax',
+        'GST': 'Goods and Services Tax',
+        'Section 301': 'China tariffs under Section 301',
+        'Section 232': 'Steel/Aluminum tariffs under Section 232',
+        'Merchandise Processing Fee': 'MPF - US processing fee (0.3464%)',
+        'Harbor Maintenance Fee': 'HMF - US harbor maintenance (0.125%)',
+    }
+    return descriptions.get(tax_name, 'Additional tax or duty')
+
+
+def is_punitive_tariff(tax_name):
+    """Check if tax is a punitive tariff"""
+    punitive_keywords = ['section 301', '301', 'section 232', '232', 'chapter 98', 'chapter 99',
+                         '9903', '9902', 'anti-dumping', 'countervailing', 'safeguard']
+    tax_lower = tax_name.lower()
+    return any(keyword in tax_lower for keyword in punitive_keywords)
+
+
+def get_punitive_explanation(tax_name):
+    """Get explanation for punitive tariff"""
+    tax_lower = tax_name.lower()
+
+    if 'section 301' in tax_lower or '301' in tax_lower:
+        return 'Section 301 tariff imposed on Chinese imports due to unfair trade practices. Rates vary from 7.5% to 25% depending on product list.'
+
+    if 'section 232' in tax_lower or '232' in tax_lower:
+        return 'Section 232 tariff on steel (25%) or aluminum (10%) imports based on national security concerns. Applies to metal content.'
+
+    if '9903' in tax_lower or 'chapter 99' in tax_lower:
+        return 'Chapter 99 punitive tariff - additional tariff imposed through executive order or trade action.'
+
+    if 'anti-dumping' in tax_lower:
+        return 'Anti-dumping duty imposed on products sold below fair market value.'
+
+    if 'countervailing' in tax_lower:
+        return 'Countervailing duty to offset foreign government subsidies.'
+
+    return 'Additional punitive tariff imposed through trade action or executive order.'
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

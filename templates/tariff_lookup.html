@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tariff Lookup - Avalara</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='avalara.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AvaTax Tariff Lookup</h1>
+            <p class="subtitle">Comprehensive duty and tariff analysis with AI-powered insights</p>
+            <div style="text-align: right; margin-top: 10px; position: relative; z-index: 10;">
+                <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Form Section -->
+            <div class="section">
+                <h2>Tariff Calculation Parameters</h2>
+                <form id="tariffForm">
+                    <div class="form-group">
+                        <label for="hsCode">HS Code *</label>
+                        <input type="text" id="hsCode" class="form-control code-input"
+                               placeholder="e.g., 3305.10.00.00 or 8517.62.00"
+                               value="3305.10.00.00" required>
+                        <span class="help-text">Enter the full HS code (6-10 digits)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="originCountry">Country of Origin *</label>
+                        <select id="originCountry" class="form-control" required>
+                            <option value="CN" selected>China (CN)</option>
+                            <option value="MX">Mexico (MX)</option>
+                            <option value="CA">Canada (CA)</option>
+                            <option value="VN">Vietnam (VN)</option>
+                            <option value="IN">India (IN)</option>
+                            <option value="JP">Japan (JP)</option>
+                            <option value="KR">South Korea (KR)</option>
+                            <option value="TW">Taiwan (TW)</option>
+                            <option value="DE">Germany (DE)</option>
+                            <option value="GB">United Kingdom (GB)</option>
+                            <option value="IT">Italy (IT)</option>
+                            <option value="FR">France (FR)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="destinationCountry">Destination Country *</label>
+                        <select id="destinationCountry" class="form-control" required>
+                            <option value="US" selected>United States (US)</option>
+                            <option value="CA">Canada (CA)</option>
+                            <option value="MX">Mexico (MX)</option>
+                            <option value="GB">United Kingdom (GB)</option>
+                            <option value="DE">Germany (DE)</option>
+                            <option value="FR">France (FR)</option>
+                            <option value="AU">Australia (AU)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="entryDate">Entry Date *</label>
+                        <input type="date" id="entryDate" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shipmentValue">Shipment Value (USD) *</label>
+                        <input type="number" id="shipmentValue" class="form-control"
+                               placeholder="e.g., 100" value="100" min="0" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modeOfTransport">Mode of Transport</label>
+                        <select id="modeOfTransport" class="form-control">
+                            <option value="AIR">Air</option>
+                            <option value="OCEAN">Ocean</option>
+                            <option value="GROUND">Ground</option>
+                            <option value="RAIL">Rail</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="environment">AvaTax Environment</label>
+                        <select id="environment" class="form-control">
+                            <option value="sandbox" selected>Sandbox</option>
+                            <option value="production">Production</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">🔍</span>
+                            Calculate Tariffs
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                            <span class="btn-icon">🔄</span>
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing tariffs and duties... This may take a few moments.</p>
+            </div>
+
+            <!-- Error Display -->
+            <div id="errorDisplay" style="display: none;"></div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" style="display: none;">
+                <!-- Summary Card -->
+                <div class="section">
+                    <h2>Tariff Summary</h2>
+                    <div class="result-card" id="summaryCard">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Duty Breakdown -->
+                <div class="section">
+                    <h2>Detailed Duty Breakdown</h2>
+                    <div class="result-card" id="dutyBreakdown">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Punitive Tariffs (Chapter 98/99) -->
+                <div class="section">
+                    <h2>Punitive Tariffs (Chapter 98/99)</h2>
+                    <div class="result-card" id="punitiveTariffs">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- AI Analysis -->
+                <div class="section">
+                    <h2>AI-Powered Analysis</h2>
+                    <div class="result-card">
+                        <div class="ai-analysis" id="aiAnalysis">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Raw API Response (Collapsible) -->
+                <div class="section">
+                    <h2>Raw API Response
+                        <button class="btn-copy" onclick="toggleRawResponse()">Toggle</button>
+                    </h2>
+                    <div class="result-card" id="rawResponseCard" style="display: none;">
+                        <div class="response-header">
+                            <h3>AvaTax API Response</h3>
+                            <button class="btn-copy" onclick="copyToClipboard('rawResponse')">📋 Copy</button>
+                        </div>
+                        <pre class="code-output" id="rawResponse"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Avalara Tariff Optimizer. Powered by AvaTax API and OpenAI.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Set today's date as default
+        document.getElementById('entryDate').valueAsDate = new Date();
+
+        document.getElementById('tariffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await calculateTariffs();
+        });
+
+        async function calculateTariffs() {
+            const hsCode = document.getElementById('hsCode').value.trim();
+            const originCountry = document.getElementById('originCountry').value;
+            const destinationCountry = document.getElementById('destinationCountry').value;
+            const entryDate = document.getElementById('entryDate').value;
+            const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
+            const modeOfTransport = document.getElementById('modeOfTransport').value;
+            const environment = document.getElementById('environment').value;
+
+            // Show loading
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorDisplay').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/tariff-lookup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hsCode,
+                        originCountry,
+                        destinationCountry,
+                        entryDate,
+                        shipmentValue,
+                        modeOfTransport,
+                        environment
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to calculate tariffs');
+                }
+
+                displayResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const { apiResponse, aiAnalysis, dutyBreakdown, punitiveTariffs } = data;
+
+            // Display Summary
+            const summaryCard = document.getElementById('summaryCard');
+            summaryCard.innerHTML = `
+                <table class="comparison-table">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td><strong>HS Code</strong></td>
+                        <td>${document.getElementById('hsCode').value}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Origin → Destination</strong></td>
+                        <td>${document.getElementById('originCountry').value} → ${document.getElementById('destinationCountry').value}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Shipment Value</strong></td>
+                        <td>$${apiResponse.totalAmount ? (apiResponse.totalAmount - apiResponse.totalTax).toFixed(2) : '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Duties & Taxes</strong></td>
+                        <td class="diff-value">$${apiResponse.totalTax?.toFixed(2) || '0.00'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Landed Cost</strong></td>
+                        <td><strong>$${apiResponse.totalAmount?.toFixed(2) || '0.00'}</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Effective Duty Rate</strong></td>
+                        <td class="diff-value">${apiResponse.totalTax && apiResponse.totalAmount ?
+                            ((apiResponse.totalTax / (apiResponse.totalAmount - apiResponse.totalTax)) * 100).toFixed(2) : '0.00'}%</td>
+                    </tr>
+                </table>
+            `;
+
+            // Display Duty Breakdown
+            const dutyBreakdownDiv = document.getElementById('dutyBreakdown');
+            if (dutyBreakdown && dutyBreakdown.length > 0) {
+                let breakdownHTML = '<table class="comparison-table"><thead><tr><th>Tax Type</th><th>Rate</th><th>Amount</th><th>Description</th></tr></thead><tbody>';
+                dutyBreakdown.forEach(duty => {
+                    breakdownHTML += `
+                        <tr>
+                            <td><strong>${duty.taxName}</strong></td>
+                            <td>${duty.rate ? (duty.rate * 100).toFixed(2) + '%' : 'N/A'}</td>
+                            <td class="diff-value">$${duty.tax?.toFixed(2) || '0.00'}</td>
+                            <td>${duty.description || 'Standard duty'}</td>
+                        </tr>
+                    `;
+                });
+                breakdownHTML += '</tbody></table>';
+                dutyBreakdownDiv.innerHTML = breakdownHTML;
+            } else {
+                dutyBreakdownDiv.innerHTML = '<p>No detailed duty breakdown available.</p>';
+            }
+
+            // Display Punitive Tariffs
+            const punitiveTariffsDiv = document.getElementById('punitiveTariffs');
+            if (punitiveTariffs && punitiveTariffs.length > 0) {
+                let punitiveHTML = '<table class="comparison-table"><thead><tr><th>Tariff Type</th><th>Rate</th><th>Amount</th><th>Reason</th></tr></thead><tbody>';
+                punitiveTariffs.forEach(tariff => {
+                    punitiveHTML += `
+                        <tr style="background: #fff3cd;">
+                            <td><strong>${tariff.taxName}</strong></td>
+                            <td class="diff-value">${tariff.rate ? (tariff.rate * 100).toFixed(2) + '%' : 'N/A'}</td>
+                            <td class="diff-value">$${tariff.tax?.toFixed(2) || '0.00'}</td>
+                            <td>${tariff.explanation || 'Additional punitive tariff'}</td>
+                        </tr>
+                    `;
+                });
+                punitiveHTML += '</tbody></table>';
+                punitiveTariffsDiv.innerHTML = punitiveHTML;
+            } else {
+                punitiveTariffsDiv.innerHTML = '<div class="alert alert-success">✓ No punitive tariffs (Chapter 98/99) apply to this shipment.</div>';
+            }
+
+            // Display AI Analysis
+            const aiAnalysisDiv = document.getElementById('aiAnalysis');
+            aiAnalysisDiv.innerHTML = formatMarkdown(aiAnalysis);
+
+            // Display Raw Response
+            document.getElementById('rawResponse').textContent = JSON.stringify(apiResponse, null, 2);
+
+            // Show results
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function formatMarkdown(text) {
+            // Simple markdown formatting
+            return text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^(.+)$/, '<p>$1</p>');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDisplay');
+            errorDiv.innerHTML = `<div class="alert alert-error">❌ <strong>Error:</strong> ${message}</div>`;
+            errorDiv.style.display = 'block';
+        }
+
+        function clearForm() {
+            document.getElementById('tariffForm').reset();
+            document.getElementById('entryDate').valueAsDate = new Date();
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+
+        function toggleRawResponse() {
+            const card = document.getElementById('rawResponseCard');
+            card.style.display = card.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
