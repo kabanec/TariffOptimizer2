@@ -46,7 +46,11 @@ def get_openai_client():
     """Get or create OpenAI client instance"""
     global _openai_client
     if _openai_client is None:
-        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        # Initialize OpenAI client with explicit parameters only
+        _openai_client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            timeout=30.0
+        )
     return _openai_client
 
 # AvaTax endpoints - Quotes API for duty calculations
