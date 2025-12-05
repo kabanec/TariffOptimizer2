@@ -264,6 +264,9 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
         # Build Quotes API request (matching quotes/create format)
+        # Set region based on destination country
+        ship_to_region = "NJ" if destination_country == "US" else ""
+
         payload = {
             "id": "tariff-lookup",
             "companyId": int(AVALARA_COMPANY_ID),
@@ -271,7 +274,7 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             "currency": "USD",
             "shipTo": {
                 "country": destination_country,
-                "region": ""
+                "region": ship_to_region
             },
             "shipFrom": {
                 "country": origin_country,
