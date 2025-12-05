@@ -9,20 +9,20 @@
         .hero-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 40px 30px;
+            padding: 25px 20px;
             text-align: center;
-            border-radius: 12px;
-            margin-bottom: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
         }
 
         .hero-section h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 1.8em;
+            margin-bottom: 5px;
         }
 
         .hero-section p {
-            font-size: 1.1em;
-            opacity: 0.95;
+            font-size: 0.95em;
+            opacity: 0.9;
         }
 
         .input-grid {
@@ -34,61 +34,61 @@
 
         .compact-form {
             background: #f8f9fa;
-            padding: 25px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
 
         .result-hero {
             background: linear-gradient(135deg, #00c853 0%, #00897b 100%);
             color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             text-align: center;
         }
 
         .result-hero .main-value {
-            font-size: 3em;
+            font-size: 2.2em;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .result-hero .sub-value {
-            font-size: 1.2em;
+            font-size: 1em;
             opacity: 0.9;
         }
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .info-box {
             background: rgba(255, 255, 255, 0.2);
-            padding: 15px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 6px;
         }
 
         .info-box .label {
-            font-size: 0.9em;
+            font-size: 0.75em;
             opacity: 0.8;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .info-box .value {
-            font-size: 1.3em;
+            font-size: 1.1em;
             font-weight: bold;
         }
 
         .tariff-card {
             background: white;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
             transition: all 0.3s;
         }
 
@@ -106,17 +106,17 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .tariff-title {
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: 600;
             color: #333;
         }
 
         .tariff-rate {
-            font-size: 1.3em;
+            font-size: 1.1em;
             font-weight: bold;
             color: #667eea;
         }
@@ -126,43 +126,45 @@
         }
 
         .tariff-amount {
-            font-size: 1.5em;
+            font-size: 1.3em;
             font-weight: bold;
             color: #333;
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .tariff-description {
             color: #666;
-            font-size: 0.95em;
-            margin-top: 10px;
-            padding-top: 10px;
+            font-size: 0.85em;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid #e0e0e0;
         }
 
         .alert-warning {
             background: #fff3cd;
             border: 2px solid #ffc107;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
         }
 
         .alert-success {
             background: #d4edda;
             border: 2px solid #28a745;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
         }
 
         .section-title {
-            font-size: 1.5em;
+            font-size: 1.2em;
             font-weight: 600;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             color: #333;
             border-left: 4px solid #667eea;
-            padding-left: 15px;
+            padding-left: 12px;
         }
     </style>
 </head>
@@ -312,10 +314,14 @@
                     </div>
                 </div>
 
-                <!-- AI Analysis -->
+                <!-- AI Analysis (Collapsible) -->
                 <div class="section">
-                    <h2 class="section-title">AI-Powered Insights</h2>
-                    <div class="result-card">
+                    <h2>
+                        <button class="btn btn-secondary" onclick="toggleAIAnalysis()" style="font-size: 0.9em; padding: 8px 15px;">
+                            <span id="aiToggleIcon">▶</span> AI-Powered Insights
+                        </button>
+                    </h2>
+                    <div class="result-card" id="aiAnalysisCard" style="display: none;">
                         <div class="ai-analysis" id="aiAnalysis">
                             <!-- Populated by JavaScript -->
                         </div>
@@ -325,7 +331,7 @@
                 <!-- Raw API Response (Collapsible) -->
                 <div class="section">
                     <h2>
-                        <button class="btn btn-secondary" onclick="toggleRawResponse()">
+                        <button class="btn btn-secondary" onclick="toggleRawResponse()" style="font-size: 0.9em; padding: 8px 15px;">
                             <span id="toggleIcon">▶</span> View Raw API Response
                         </button>
                     </h2>
@@ -534,6 +540,18 @@
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('errorDisplay').style.display = 'none';
             document.getElementById('advancedOptions').style.display = 'none';
+        }
+
+        function toggleAIAnalysis() {
+            const card = document.getElementById('aiAnalysisCard');
+            const icon = document.getElementById('aiToggleIcon');
+            if (card.style.display === 'none') {
+                card.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                card.style.display = 'none';
+                icon.textContent = '▶';
+            }
         }
 
         function toggleRawResponse() {

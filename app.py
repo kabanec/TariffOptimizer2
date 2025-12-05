@@ -589,8 +589,9 @@ def api_tariff_lookup():
             if lines:
                 line = lines[0]
 
-                # Parse dutyGranularity for detailed duty breakdown
-                duty_granularity = line.get("dutyGranularity", [])
+                # Parse dutyGranularity from calculationSummary for detailed duty breakdown
+                calculation_summary = line.get("calculationSummary", {})
+                duty_granularity = calculation_summary.get("dutyGranularity", [])
 
                 for duty_item in duty_granularity:
                     duty_type = duty_item.get('type', 'STANDARD')
