@@ -243,7 +243,7 @@ Focus: Duties, taxes, HS codes, tax codes, rates, summary details, country rules
     return base_prompt
 
 
-def call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport):
+def call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type='courier'):
     """Call AvaTax Global Compliance API for landed cost calculation"""
     try:
         import base64
@@ -261,6 +261,7 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
 
         logger.info(f"Calling AvaTax Global Compliance API - Environment: {environment}")
         logger.info(f"Endpoint: {endpoint}")
+        logger.info(f"Calculator Type: {calculator_type}")
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
         # Build Quotes API request (matching quotes/create format)
@@ -280,7 +281,6 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                 "country": origin_country,
                 "region": ""
             },
-            "shipmentType": "postal",
             "type": "QUOTE_MEDIAN",
             "lines": [
                 {
@@ -327,6 +327,13 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             ],
             "taxRegistered": False
         }
+
+        # Add shipmentType only for postal calculator
+        if calculator_type == 'postal':
+            payload["shipmentType"] = "postal"
+            logger.info(f"Calculator type is 'postal', including shipmentType in payload")
+        else:
+            logger.info(f"Calculator type is 'courier', omitting shipmentType from payload")
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
 
@@ -561,13 +568,14 @@ def api_tariff_lookup():
         entry_date = data.get('entryDate')
         shipment_value = float(data.get('shipmentValue', 0))
         mode_of_transport = data.get('modeOfTransport', 'AIR')
+        calculator_type = data.get('calculatorType', 'courier')
         environment = data.get('environment', 'sandbox')
 
         if not all([hs_code, origin_country, destination_country, entry_date]):
             return jsonify({'error': 'Missing required fields'}), 400
 
         # Call AvaTax Global Compliance API
-        api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport)
+        api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type)
 
         if 'error' in api_response:
             logger.error(f"AvaTax API Error: {api_response}")

@@ -238,6 +238,15 @@
                             <label for="entryDate">Entry Date *</label>
                             <input type="date" id="entryDate" class="form-control" required>
                         </div>
+
+                        <div class="form-group">
+                            <label for="calculatorType">Calculator Type *</label>
+                            <select id="calculatorType" class="form-control" required>
+                                <option value="courier" selected>Courier (Standard)</option>
+                                <option value="postal">Postal</option>
+                            </select>
+                            <span class="help-text">Courier omits shipmentType, Postal includes it</span>
+                        </div>
                     </div>
 
                     <!-- Advanced Options (Initially Hidden - Driven by API Response) -->
@@ -368,6 +377,7 @@
             const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
             const modeOfTransport = document.getElementById('modeOfTransport').value;
             const commodityDescription = document.getElementById('commodityDescription').value;
+            const calculatorType = document.getElementById('calculatorType').value;
 
             // Show loading
             document.getElementById('loadingIndicator').style.display = 'block';
@@ -387,6 +397,7 @@
                         entryDate,
                         shipmentValue,
                         modeOfTransport,
+                        calculatorType,
                         environment: 'sandbox'
                     })
                 });
