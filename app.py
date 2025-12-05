@@ -49,10 +49,10 @@ def get_openai_client():
         _openai_client = OpenAI(api_key=OPENAI_API_KEY)
     return _openai_client
 
-# AvaTax endpoints - Global Compliance API for landed cost calculations
+# AvaTax endpoints - Quotes API for duty calculations
 AVATAX_ENDPOINTS = {
-    'sandbox': f'https://quoting.xbo.dev.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance',
-    'production': f'https://quoting.xbo.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance'
+    'sandbox': 'https://quoting-sbx.xbo.avalara.com/api/v2/companies/quotes/create',
+    'production': 'https://quoting.xbo.avalara.com/api/v2/companies/quotes/create'
 }
 
 # Learnings storage
@@ -259,81 +259,57 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
-        # Build Global Compliance API request (matching postal services format exactly)
+        # Build Quotes API request (matching quotes/create format)
         payload = {
             "id": "tariff-lookup",
             "companyId": int(AVALARA_COMPANY_ID),
             "sellerCode": "TARIFF_LOOKUP",
             "currency": "USD",
-            "shipFrom": {
-                "region": "",
-                "country": origin_country,
-                "line1": "",
-                "city": ""
+            "shipTo": {
+                "region": "CA" if destination_country == "US" else "",
+                "country": destination_country
             },
-            "shipmentType": "postal",
-            "destinations": [
-                {
-                    "shipTo": {
-                        "country": destination_country,
-                        "region": "CA" if destination_country == "US" else ""
-                    },
-                    "parameters": [
-                        {
-                            "name": "SPECIAL_CALC",
-                            "value": "TAX_DUTY_INCLUDED",
-                            "unit": ""
-                        }
-                    ],
-                    "taxRegistered": False
-                }
-            ],
-            "type": "QUOTE_MEDIAN",
+            "disableCalculationSummary": False,
+            "transactionDate": None,
             "lines": [
                 {
                     "lineNumber": 1,
                     "quantity": 1,
                     "item": {
-                        "classifications": [
-                            {
-                                "country": destination_country,
-                                "hscode": hs_code_normalized
-                            }
-                        ],
                         "itemCode": "1",
                         "description": f"HS Code {hs_code}",
                         "summary": "",
-                        "preferenceProgramApplicable": False,
                         "itemGroup": "General",
                         "classificationParameters": [
+                            {
+                                "name": "coo",
+                                "value": origin_country
+                            },
                             {
                                 "name": "price",
                                 "value": str(round(shipment_value, 2)),
                                 "unit": "USD"
                             },
                             {
-                                "name": "NETWEIGHT",
-                                "value": "2",
-                                "unit": "kg"
+                                "name": "hs_code",
+                                "value": hs_code_normalized
                             },
                             {
-                                "name": "coo",
-                                "value": origin_country,
-                                "unit": ""
+                                "name": "SPECIAL_CALC",
+                                "value": "TAX_DUTY_INCLUDED"
                             }
                         ]
                     }
                 }
             ],
-            "disableCalculationSummary": False,
-            "restrictionsCheck": True,
-            "program": "Estimator",
             "parameters": [
                 {
-                    "name": "AUTOMATIC_HS_FALLBACK",
-                    "value": "true"
+                    "name": "shipping",
+                    "value": "20",
+                    "unit": "USD"
                 }
-            ]
+            ],
+            "type": "QUOTE_MAXIMUM"
         }
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
