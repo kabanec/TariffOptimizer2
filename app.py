@@ -318,8 +318,12 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         credentials = base64.b64encode(f"{AVALARA_USERNAME}:{AVALARA_PASSWORD}".encode()).decode()
         headers = {
             "Authorization": f"Basic {credentials}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
+
+        logger.info(f"Authorization header present: {bool(headers.get('Authorization'))}")
+        logger.info(f"Credentials length: {len(credentials) if credentials else 0}")
 
         response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
 
