@@ -717,5 +717,70 @@ def get_punitive_explanation(tax_name):
     return 'Additional punitive tariff imposed through trade action or executive order.'
 
 
+@app.route('/api-tester')
+def api_tester():
+    """API testing page"""
+    return render_template('api_tester.html')
+
+
+@app.route('/api/test-avatax', methods=['POST'])
+def test_avatax():
+    """Test endpoint for direct AvaTax API calls"""
+    try:
+        import base64
+        data = request.json
+        endpoint_type = data.get('endpoint', 'quotes')
+        payload = data.get('payload', {})
+
+        # Define endpoints
+        endpoints = {
+            'quotes': f'https://quoting-sbx.xbo.avalara.com/api/v2/companies/{AVALARA_COMPANY_ID}/quotes/create',
+            'globalcompliance': f'https://quoting.xbo.dev.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance'
+        }
+
+        endpoint_url = endpoints.get(endpoint_type)
+        if not endpoint_url:
+            return jsonify({'error': 'Invalid endpoint type'}), 400
+
+        if not AVALARA_USERNAME or not AVALARA_PASSWORD:
+            return jsonify({'error': 'Avalara credentials not configured'}), 500
+
+        # Use Basic Authentication
+        credentials = base64.b64encode(f"{AVALARA_USERNAME}:{AVALARA_PASSWORD}".encode()).decode()
+        headers = {
+            "Authorization": f"Basic {credentials}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        logger.info(f"Testing AvaTax API - Endpoint: {endpoint_type}")
+        logger.info(f"URL: {endpoint_url}")
+        logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
+
+        response = requests.post(endpoint_url, headers=headers, json=payload, timeout=30)
+
+        logger.info(f"Response status: {response.status_code}")
+        logger.info(f"Response body: {response.text[:2000]}")
+
+        # Return response with status code
+        try:
+            response_data = response.json()
+            response_data['status_code'] = response.status_code
+            return jsonify(response_data), response.status_code
+        except:
+            return jsonify({
+                'error': 'Failed to parse response',
+                'status_code': response.status_code,
+                'raw_response': response.text
+            }), response.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error: {str(e)}")
+        return jsonify({'error': f'Request failed: {str(e)}'}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in test_avatax: {str(e)}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

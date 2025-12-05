@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AvaTax API Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .endpoint-selector {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .endpoint-selector h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .endpoint-option {
+            margin-bottom: 15px;
+        }
+
+        .endpoint-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .endpoint-option label {
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .endpoint-url {
+            display: block;
+            margin-left: 30px;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .test-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        .response-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 968px) {
+            .test-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AvaTax API Tester</h1>
+            <p>Test different AvaTax endpoints with custom requests</p>
+        </div>
+
+        <div class="content">
+            <div class="endpoint-selector">
+                <h2>Select Endpoint</h2>
+                <div class="endpoint-option">
+                    <input type="radio" id="quotes" name="endpoint" value="quotes" checked>
+                    <label for="quotes">
+                        <strong>Quotes API (quotes/create)</strong>
+                        <span class="endpoint-url">https://quoting-sbx.xbo.avalara.com/api/v2/companies/{companyId}/quotes/create</span>
+                    </label>
+                </div>
+                <div class="endpoint-option">
+                    <input type="radio" id="globalcompliance" name="endpoint" value="globalcompliance">
+                    <label for="globalcompliance">
+                        <strong>Global Compliance API</strong>
+                        <span class="endpoint-url">https://quoting.xbo.dev.avalara.io/api/v2/companies/{companyId}/globalcompliance</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <div class="panel">
+                    <h3>Request JSON</h3>
+                    <textarea id="requestJson" placeholder='Paste your JSON request here...'>{
+  "id": "test-request",
+  "companyId": 2000099295,
+  "sellerCode": "TEST",
+  "currency": "USD",
+  "shipTo": {
+    "country": "US",
+    "region": "CA"
+  },
+  "shipmentType": "postal",
+  "type": "QUOTE_MEDIAN",
+  "lines": [
+    {
+      "lineNumber": "1",
+      "quantity": 1,
+      "item": {
+        "itemCode": "1",
+        "description": "Test Product",
+        "summary": "",
+        "itemGroup": "General",
+        "classificationParameters": [
+          {
+            "name": "coo",
+            "value": "CN"
+          },
+          {
+            "name": "hs_code",
+            "value": "33051000"
+          },
+          {
+            "name": "weight",
+            "value": "1.0",
+            "unit": "kg"
+          }
+        ],
+        "parameters": []
+      },
+      "preferenceProgramApplicable": false,
+      "classificationParameters": [
+        {
+          "name": "price",
+          "value": "100",
+          "unit": "USD"
+        }
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "name": "shipping",
+      "value": "20.00",
+      "unit": "USD"
+    },
+    {
+      "name": "SPECIAL_CALC1",
+      "value": "TAX_DUTY_INCLUDED"
+    }
+  ],
+  "taxRegistered": false,
+  "b2b": true
+}</textarea>
+                    <div class="button-group">
+                        <button onclick="sendRequest()">Send Request</button>
+                        <button class="secondary" onclick="clearRequest()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Response</h3>
+                    <div id="responseContainer">
+                        <p style="color: #666; text-align: center; padding: 40px;">
+                            Response will appear here after sending a request
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendRequest() {
+            const requestJson = document.getElementById('requestJson').value;
+            const endpoint = document.querySelector('input[name="endpoint"]:checked').value;
+            const responseContainer = document.getElementById('responseContainer');
+
+            // Validate JSON
+            try {
+                JSON.parse(requestJson);
+            } catch (e) {
+                responseContainer.innerHTML = `
+                    <div class="error-message">
+                        <strong>Invalid JSON:</strong> ${e.message}
+                    </div>
+                `;
+                return;
+            }
+
+            // Show loading
+            responseContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Sending request to ${endpoint} endpoint...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/test-avatax', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        endpoint: endpoint,
+                        payload: JSON.parse(requestJson)
+                    })
+                });
+
+                const data = await response.json();
+
+                // Display response
+                const statusClass = response.ok ? 'status-success' : 'status-error';
+                const statusText = response.ok ? 'Success' : 'Error';
+
+                responseContainer.innerHTML = `
+                    <div class="response-header">
+                        <h3>Response</h3>
+                        <span class="status-badge ${statusClass}">
+                            ${statusText} (${data.status_code || response.status})
+                        </span>
+                    </div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                responseContainer.innerHTML = `
+                    <div class="error-message">
+                        <strong>Request Failed:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function clearRequest() {
+            document.getElementById('requestJson').value = '';
+        }
+
+        // Allow Ctrl+Enter to send request
+        document.getElementById('requestJson').addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                sendRequest();
+            }
+        });
+    </script>
+</body>
+</html>
