@@ -266,14 +266,14 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             "sellerCode": "TARIFF_LOOKUP",
             "currency": "USD",
             "shipTo": {
-                "region": "CA" if destination_country == "US" else "",
-                "country": destination_country
+                "country": destination_country,
+                "region": "CA" if destination_country == "US" else ""
             },
-            "disableCalculationSummary": False,
-            "transactionDate": None,
+            "shipmentType": "postal",
+            "type": "QUOTE_MEDIAN",
             "lines": [
                 {
-                    "lineNumber": 1,
+                    "lineNumber": "1",
                     "quantity": 1,
                     "item": {
                         "itemCode": "1",
@@ -286,30 +286,40 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                                 "value": origin_country
                             },
                             {
-                                "name": "price",
-                                "value": str(round(shipment_value, 2)),
-                                "unit": "USD"
-                            },
-                            {
                                 "name": "hs_code",
                                 "value": hs_code_normalized
                             },
                             {
-                                "name": "SPECIAL_CALC",
-                                "value": "TAX_DUTY_INCLUDED"
+                                "name": "weight",
+                                "value": "1.0",
+                                "unit": "kg"
                             }
-                        ]
-                    }
+                        ],
+                        "parameters": []
+                    },
+                    "preferenceProgramApplicable": False,
+                    "classificationParameters": [
+                        {
+                            "name": "price",
+                            "value": str(round(shipment_value, 2)),
+                            "unit": "USD"
+                        }
+                    ]
                 }
             ],
             "parameters": [
                 {
                     "name": "shipping",
-                    "value": "20",
+                    "value": "20.00",
                     "unit": "USD"
+                },
+                {
+                    "name": "SPECIAL_CALC1",
+                    "value": "TAX_DUTY_INCLUDED"
                 }
             ],
-            "type": "QUOTE_MAXIMUM"
+            "taxRegistered": False,
+            "b2b": True
         }
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
