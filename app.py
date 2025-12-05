@@ -271,13 +271,17 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             "currency": "USD",
             "shipTo": {
                 "country": destination_country,
-                "region": "CA" if destination_country == "US" else ""
+                "region": ""
+            },
+            "shipFrom": {
+                "country": origin_country,
+                "region": ""
             },
             "shipmentType": "postal",
             "type": "QUOTE_MEDIAN",
             "lines": [
                 {
-                    "lineNumber": "1",
+                    "lineNumber": "0",
                     "quantity": 1,
                     "item": {
                         "itemCode": "1",
@@ -295,8 +299,8 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                             },
                             {
                                 "name": "weight",
-                                "value": "1.0",
-                                "unit": "kg"
+                                "value": "5.0",
+                                "unit": "g"
                             }
                         ],
                         "parameters": []
@@ -314,16 +318,11 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             "parameters": [
                 {
                     "name": "shipping",
-                    "value": "20.00",
+                    "value": "50.0",
                     "unit": "USD"
-                },
-                {
-                    "name": "SPECIAL_CALC1",
-                    "value": "TAX_DUTY_INCLUDED"
                 }
             ],
-            "taxRegistered": False,
-            "b2b": True
+            "taxRegistered": False
         }
 
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
