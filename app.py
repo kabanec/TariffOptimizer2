@@ -578,35 +578,47 @@ def api_tariff_lookup():
                 'full_response': api_response.get('full_response')
             }), api_response.get('status_code', 500)
 
-        # Parse Global Compliance API response
+        # Parse Quotes API response
         duty_breakdown = []
         punitive_tariffs = []
 
         try:
-            # Extract line data from Global Compliance API response
-            lines = api_response.get('globalCompliance', [{}])[0].get('quote', {}).get('lines', [])
+            # Extract line data from Quotes API response
+            lines = api_response.get('lines', [])
 
             if lines:
                 line = lines[0]
-                duty_calc = line.get("calculationSummary", {}).get("dutyCalculationSummary", [])
-                cost_lines = line.get("costLines", [])
 
-                # Check if duty de minimis was applied
-                duty_applied = next((d.get("value") for d in duty_calc if d.get("name") == "DUTY_DEMINIMIS_APPLIED"), "false")
+                # Parse dutyGranularity for detailed duty breakdown
+                duty_granularity = line.get("dutyGranularity", [])
 
-                if duty_applied == "true":
-                    duty_rate = 0.0
-                    duty_breakdown.append({
-                        'taxName': 'Duty',
-                        'tax': 0.0,
-                        'rate': 0.0,
-                        'description': 'De Minimis exemption applied - no duty charged'
-                    })
-                else:
-                    # Extract duty rate
-                    duty_rate = next((float(d.get("value", 0)) for d in duty_calc if d.get("name") == "RATE"), 0.0)
+                for duty_item in duty_granularity:
+                    duty_type = duty_item.get('type', 'STANDARD')
+                    rate_label = duty_item.get('rateLabel', '')
+                    description = duty_item.get('description', '')
+                    effective_rate = float(duty_item.get('effectiveRate', 0))
+                    hs_code_item = duty_item.get('hsCode', '')
 
-                    # Parse cost lines for duties and taxes
+                    duty_info = {
+                        'taxName': rate_label or description,
+                        'tax': shipment_value * effective_rate,  # Calculate duty amount
+                        'rate': effective_rate * 100,  # Convert to percentage
+                        'description': description,
+                        'hsCode': hs_code_item,
+                        'calculationMethod': duty_item.get('calculationMethod', ''),
+                        'applicability': duty_item.get('applicability', '')
+                    }
+
+                    # Check if it's a punitive tariff based on type or HS code
+                    if duty_type == 'PUNITIVE' or hs_code_item.startswith(('9903', '9902', '98', '99')):
+                        duty_info['explanation'] = description
+                        punitive_tariffs.append(duty_info)
+                    else:
+                        duty_breakdown.append(duty_info)
+
+                # If no duty granularity, fall back to cost lines
+                if not duty_granularity:
+                    cost_lines = line.get("costLines", [])
                     for cost_line in cost_lines:
                         cost_type = cost_line.get('type', '')
                         tax_name = cost_line.get('taxName', cost_type)
@@ -616,28 +628,20 @@ def api_tariff_lookup():
                         duty_info = {
                             'taxName': tax_name,
                             'tax': amount,
-                            'rate': rate * 100 if rate else duty_rate * 100,  # Convert to percentage
+                            'rate': rate * 100,
                             'description': get_tax_description(tax_name)
                         }
 
-                        # Check if it's a punitive tariff (Chapter 98/99 or Section 301/232)
                         if is_punitive_tariff(tax_name):
                             duty_info['explanation'] = get_punitive_explanation(tax_name)
                             punitive_tariffs.append(duty_info)
                         else:
                             duty_breakdown.append(duty_info)
 
-                # If no cost lines but we have duty rate, add it
-                if not cost_lines and duty_rate > 0:
-                    duty_breakdown.append({
-                        'taxName': 'Duty',
-                        'tax': shipment_value * duty_rate,
-                        'rate': duty_rate * 100,
-                        'description': 'Standard customs duty (MFN rate)'
-                    })
-
         except Exception as parse_error:
             logger.error(f"Error parsing API response: {str(parse_error)}")
+            import traceback
+            traceback.print_exc()
             # Return raw response if parsing fails
             pass
 
