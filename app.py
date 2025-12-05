@@ -602,7 +602,7 @@ def api_tariff_lookup():
                     duty_info = {
                         'taxName': rate_label or description,
                         'tax': shipment_value * effective_rate,  # Calculate duty amount
-                        'rate': effective_rate * 100,  # Convert to percentage
+                        'rate': effective_rate,  # Keep as decimal (e.g., 0.10 for 10%)
                         'description': description,
                         'hsCode': hs_code_item,
                         'calculationMethod': duty_item.get('calculationMethod', ''),
@@ -628,7 +628,7 @@ def api_tariff_lookup():
                         duty_info = {
                             'taxName': tax_name,
                             'tax': amount,
-                            'rate': rate * 100,
+                            'rate': rate,  # Keep as decimal
                             'description': get_tax_description(tax_name)
                         }
 
