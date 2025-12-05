@@ -222,20 +222,18 @@
 
         <div class="content">
             <div class="endpoint-selector">
-                <h2>Select Endpoint</h2>
-                <div class="endpoint-option">
-                    <input type="radio" id="quotes" name="endpoint" value="quotes" checked>
-                    <label for="quotes">
-                        <strong>Quotes API (quotes/create)</strong>
-                        <span class="endpoint-url">https://quoting-sbx.xbo.avalara.com/api/v2/companies/{companyId}/quotes/create</span>
-                    </label>
+                <h2>API Endpoint URL</h2>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Custom URL:</label>
+                    <input type="text" id="customUrl"
+                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px;"
+                           value="https://quoting-sbx.xbo.avalara.com/api/v2/companies/2000099295/quotes/create"
+                           placeholder="Enter full API endpoint URL">
                 </div>
-                <div class="endpoint-option">
-                    <input type="radio" id="globalcompliance" name="endpoint" value="globalcompliance">
-                    <label for="globalcompliance">
-                        <strong>Global Compliance API</strong>
-                        <span class="endpoint-url">https://quoting.xbo.dev.avalara.io/api/v2/companies/{companyId}/globalcompliance</span>
-                    </label>
+                <div style="font-size: 12px; color: #666;">
+                    <strong>Quick presets:</strong><br>
+                    <button onclick="setUrl('https://quoting-sbx.xbo.avalara.com/api/v2/companies/2000099295/quotes/create')" class="secondary" style="padding: 5px 10px; margin: 5px 5px 0 0; font-size: 12px;">Quotes (sandbox)</button>
+                    <button onclick="setUrl('https://quoting.xbo.dev.avalara.io/api/v2/companies/2000099295/globalcompliance')" class="secondary" style="padding: 5px 10px; margin: 5px 5px 0 0; font-size: 12px;">Global Compliance</button>
                 </div>
             </div>
 
@@ -322,10 +320,24 @@
     </div>
 
     <script>
+        function setUrl(url) {
+            document.getElementById('customUrl').value = url;
+        }
+
         async function sendRequest() {
             const requestJson = document.getElementById('requestJson').value;
-            const endpoint = document.querySelector('input[name="endpoint"]:checked').value;
+            const customUrl = document.getElementById('customUrl').value;
             const responseContainer = document.getElementById('responseContainer');
+
+            // Validate URL
+            if (!customUrl) {
+                responseContainer.innerHTML = `
+                    <div class="error-message">
+                        <strong>Error:</strong> Please enter an API endpoint URL
+                    </div>
+                `;
+                return;
+            }
 
             // Validate JSON
             try {
@@ -343,7 +355,7 @@
             responseContainer.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Sending request to ${endpoint} endpoint...</p>
+                    <p>Sending request to custom endpoint...</p>
                 </div>
             `;
 
@@ -354,7 +366,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        endpoint: endpoint,
+                        customUrl: customUrl,
                         payload: JSON.parse(requestJson)
                     })
                 });

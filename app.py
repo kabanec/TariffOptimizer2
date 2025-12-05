@@ -729,18 +729,21 @@ def test_avatax():
     try:
         import base64
         data = request.json
-        endpoint_type = data.get('endpoint', 'quotes')
+        custom_url = data.get('customUrl')
         payload = data.get('payload', {})
 
-        # Define endpoints
-        endpoints = {
-            'quotes': f'https://quoting-sbx.xbo.avalara.com/api/v2/companies/{AVALARA_COMPANY_ID}/quotes/create',
-            'globalcompliance': f'https://quoting.xbo.dev.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance'
-        }
-
-        endpoint_url = endpoints.get(endpoint_type)
-        if not endpoint_url:
-            return jsonify({'error': 'Invalid endpoint type'}), 400
+        # Use custom URL if provided, otherwise fall back to endpoint type
+        if custom_url:
+            endpoint_url = custom_url
+        else:
+            endpoint_type = data.get('endpoint', 'quotes')
+            endpoints = {
+                'quotes': f'https://quoting-sbx.xbo.avalara.com/api/v2/companies/{AVALARA_COMPANY_ID}/quotes/create',
+                'globalcompliance': f'https://quoting.xbo.dev.avalara.io/api/v2/companies/{AVALARA_COMPANY_ID}/globalcompliance'
+            }
+            endpoint_url = endpoints.get(endpoint_type)
+            if not endpoint_url:
+                return jsonify({'error': 'Invalid endpoint type'}), 400
 
         if not AVALARA_USERNAME or not AVALARA_PASSWORD:
             return jsonify({'error': 'Avalara credentials not configured'}), 500
@@ -753,7 +756,7 @@ def test_avatax():
             "Accept": "application/json"
         }
 
-        logger.info(f"Testing AvaTax API - Endpoint: {endpoint_type}")
+        logger.info(f"Testing AvaTax API")
         logger.info(f"URL: {endpoint_url}")
         logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
 
