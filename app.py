@@ -291,19 +291,20 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
             "type": "QUOTE_MEDIAN",
             "lines": [
                 {
-                    "preferenceProgramApplicable": False,
                     "lineNumber": 1,
                     "quantity": 1,
                     "item": {
-                        "itemCode": "1",
-                        "description": f"HS Code {hs_code}",
-                        "itemGroup": "General",
                         "classifications": [
                             {
                                 "country": destination_country,
                                 "hscode": hs_code_normalized
                             }
                         ],
+                        "itemCode": "1",
+                        "description": f"HS Code {hs_code}",
+                        "summary": "",
+                        "preferenceProgramApplicable": False,
+                        "itemGroup": "General",
                         "classificationParameters": [
                             {
                                 "name": "price",
