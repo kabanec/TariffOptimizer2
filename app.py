@@ -259,7 +259,7 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
 
-        # Build Global Compliance API request (matching postal services format)
+        # Build Global Compliance API request (matching postal services format exactly)
         payload = {
             "id": "tariff-lookup",
             "companyId": int(AVALARA_COMPANY_ID),
@@ -272,48 +272,53 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                 "city": ""
             },
             "shipmentType": "postal",
-            "destinations": [{
-                "shipTo": {
-                    "country": destination_country,
-                    "region": "CA" if destination_country == "US" else ""
-                },
-                "parameters": [
-                    {
-                        "name": "SPECIAL_CALC",
-                        "value": "TAX_DUTY_INCLUDED",
-                        "unit": ""
-                    }
-                ],
-                "taxRegistered": False
-            }],
-            "type": "QUOTE_MEDIAN",
-            "lines": [{
-                "preferenceProgramApplicable": False,
-                "lineNumber": 1,
-                "quantity": 1,
-                "item": {
-                    "itemCode": "1",
-                    "description": f"HS Code {hs_code}",
-                    "itemGroup": "General",
-                    "classificationParameters": [
+            "destinations": [
+                {
+                    "shipTo": {
+                        "country": destination_country,
+                        "region": "CA" if destination_country == "US" else ""
+                    },
+                    "parameters": [
                         {
-                            "name": "price",
-                            "value": str(round(shipment_value, 2)),
-                            "unit": "USD"
-                        },
-                        {
-                            "name": "NETWEIGHT",
-                            "value": "2",
-                            "unit": "kg"
-                        },
-                        {
-                            "name": "coo",
-                            "value": origin_country,
+                            "name": "SPECIAL_CALC",
+                            "value": "TAX_DUTY_INCLUDED",
                             "unit": ""
                         }
-                    ]
+                    ],
+                    "taxRegistered": False
                 }
-            }],
+            ],
+            "type": "QUOTE_MEDIAN",
+            "lines": [
+                {
+                    "preferenceProgramApplicable": False,
+                    "lineNumber": 1,
+                    "quantity": 1,
+                    "item": {
+                        "itemCode": "1",
+                        "description": f"HS Code {hs_code}",
+                        "hscode": hs_code_normalized,
+                        "itemGroup": "General",
+                        "classificationParameters": [
+                            {
+                                "name": "price",
+                                "value": str(round(shipment_value, 2)),
+                                "unit": "USD"
+                            },
+                            {
+                                "name": "NETWEIGHT",
+                                "value": "2",
+                                "unit": "kg"
+                            },
+                            {
+                                "name": "coo",
+                                "value": origin_country,
+                                "unit": ""
+                            }
+                        ]
+                    }
+                }
+            ],
             "disableCalculationSummary": False,
             "restrictionsCheck": True,
             "program": "Estimator",
