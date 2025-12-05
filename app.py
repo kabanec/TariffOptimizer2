@@ -297,8 +297,13 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                     "item": {
                         "itemCode": "1",
                         "description": f"HS Code {hs_code}",
-                        "hscode": hs_code_normalized,
                         "itemGroup": "General",
+                        "classifications": [
+                            {
+                                "country": destination_country,
+                                "hscode": hs_code_normalized
+                            }
+                        ],
                         "classificationParameters": [
                             {
                                 "name": "price",
