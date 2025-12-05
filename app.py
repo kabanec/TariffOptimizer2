@@ -51,8 +51,8 @@ def get_openai_client():
 
 # AvaTax endpoints - Quotes API for duty calculations
 AVATAX_ENDPOINTS = {
-    'sandbox': 'https://quoting-sbx.xbo.avalara.com/api/v2/companies/quotes/create',
-    'production': 'https://quoting.xbo.avalara.com/api/v2/companies/quotes/create'
+    'sandbox': f'https://quoting-sbx.xbo.avalara.com/api/v2/companies/{AVALARA_COMPANY_ID}/quotes/create',
+    'production': f'https://quoting.xbo.avalara.com/api/v2/companies/{AVALARA_COMPANY_ID}/quotes/create'
 }
 
 # Learnings storage
