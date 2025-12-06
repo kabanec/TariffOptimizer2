@@ -47,6 +47,7 @@ def get_openai_client():
     global _openai_client
     if _openai_client is None:
         # Initialize OpenAI client with explicit parameters only
+        # Do not pass proxies parameter - it causes errors in openai>=1.0
         _openai_client = OpenAI(
             api_key=OPENAI_API_KEY,
             timeout=30.0
