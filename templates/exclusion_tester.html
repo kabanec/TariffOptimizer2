@@ -92,6 +92,10 @@
         <main>
             <div class="card">
                 <h2>Product Information</h2>
+                <p style="color: #666; font-size: 0.95em; margin-bottom: 20px;">
+                    <strong>Research Sources:</strong> CBP Section 232 FAQs, USTR Section 301 guidance, Federal Register notices, USMCA provisions.
+                    Last updated: December 2025. Note: All General Approved Exclusions (GAEs) and country-level arrangements were revoked effective March 12, 2025.
+                </p>
                 <form id="exclusionForm">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
@@ -146,7 +150,7 @@
                     <div class="duty-comparison">
                         <div class="comparison-column">
                             <h3>Before Exclusions</h3>
-                            <div id="dutiesBeforeSection232 Steel & Aluminum Derivatives"></div>
+                            <div id="dutiesBefore"></div>
                             <div class="total-row">
                                 Total Duties: $<span id="totalBefore">0.00</span>
                             </div>
@@ -171,85 +175,177 @@
     </div>
 
     <script>
-        // Exclusion database - researched from official CBP regulations
+        // Exclusion database - researched from official CBP regulations and Federal Register
+        // Sources: CBP.gov Section 232 FAQs, USTR Section 301 guidance, Federal Register notices
         const EXCLUSIONS_DATABASE = {
-            // Section 232 Steel (99038187, 99038188, etc.)
+            // Section 232 Steel - UPDATED WITH RESEARCH
             'section_232_steel': [
                 {
-                    code: '9903.81.01',
-                    name: 'Exemption: Products from Canada',
-                    description: 'Steel products manufactured in Canada are exempt from Section 232 duties',
+                    code: '9903.01.26',
+                    name: 'USMCA Exemption: Canada Origin',
+                    description: 'Goods that originate in Canada under USMCA qualify for exemption from Section 232 steel duties. Note: All General Approved Exclusions (GAEs) were revoked effective March 12, 2025.',
                     appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
                     effect: 'EXEMPT',
                     conditions: {
-                        originCountries: ['CA']
-                    }
+                        originCountries: ['CA'],
+                        requiresUSMCA: true
+                    },
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
                 },
                 {
-                    code: '9903.81.02',
-                    name: 'Exemption: Products from Mexico',
-                    description: 'Steel products manufactured in Mexico are exempt from Section 232 duties',
+                    code: '9903.01.27',
+                    name: 'USMCA Exemption: Mexico Origin',
+                    description: 'Goods that originate in Mexico under USMCA qualify for exemption from Section 232 steel duties. Note: All General Approved Exclusions (GAEs) were revoked effective March 12, 2025.',
                     appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
                     effect: 'EXEMPT',
                     conditions: {
-                        originCountries: ['MX']
-                    }
+                        originCountries: ['MX'],
+                        requiresUSMCA: true
+                    },
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
                 },
                 {
-                    code: '9903.81.03',
-                    name: 'Exemption: Products from EU',
-                    description: 'Steel products manufactured in EU member states are exempt',
+                    code: '9903.81.92',
+                    name: 'U.S.-Origin Steel Exemption',
+                    description: 'Derivative steel articles made exclusively from steel melted and poured in the United States (0% tariff-rate). Does NOT apply if steel scrap is remelted and poured outside the U.S.',
+                    appliesToHsCodes: ['99038189', '99038190', '99038191', '99038193'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        usOrigin: true,
+                        meltedAndPouredInUS: true
+                    },
+                    source: 'CBP Section 232 FAQs; Presidential Proclamation'
+                },
+                {
+                    code: 'PRODUCT_EXCLUSION',
+                    name: 'Commerce Product-Specific Exclusion',
+                    description: 'Time-limited product exclusion granted by U.S. Department of Commerce (valid 1 year or until quantity exhausted). NOTE: Commerce is no longer processing new exclusion requests as of Feb 10, 2025.',
                     appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
                     effect: 'EXEMPT',
                     conditions: {
-                        originCountries: ['DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'SE', 'PL']
-                    }
+                        requiresExclusionApproval: true,
+                        requiresIORMatch: true,
+                        quantityLimited: true
+                    },
+                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)'
                 }
             ],
-            // Section 232 Aluminum (99038502, 99038504, etc.)
+            // Section 232 Aluminum - UPDATED WITH RESEARCH
             'section_232_aluminum': [
                 {
-                    code: '9903.85.01',
-                    name: 'Exemption: Products from Canada',
-                    description: 'Aluminum products manufactured in Canada are exempt from Section 232 duties',
-                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    code: '9903.01.26',
+                    name: 'USMCA Exemption: Canada Origin',
+                    description: 'Goods that originate in Canada under USMCA qualify for exemption from Section 232 aluminum duties. Note: All General Approved Exclusions (GAEs) were revoked effective March 12, 2025.',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508', '99038509'],
                     effect: 'EXEMPT',
                     conditions: {
-                        originCountries: ['CA']
-                    }
+                        originCountries: ['CA'],
+                        requiresUSMCA: true
+                    },
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
                 },
                 {
-                    code: '9903.85.02',
-                    name: 'Exemption: Products from Mexico',
-                    description: 'Aluminum products manufactured in Mexico are exempt from Section 232 duties',
-                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    code: '9903.01.27',
+                    name: 'USMCA Exemption: Mexico Origin',
+                    description: 'Goods that originate in Mexico under USMCA qualify for exemption from Section 232 aluminum duties. Note: All General Approved Exclusions (GAEs) were revoked effective March 12, 2025.',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508', '99038509'],
                     effect: 'EXEMPT',
                     conditions: {
-                        originCountries: ['MX']
-                    }
+                        originCountries: ['MX'],
+                        requiresUSMCA: true
+                    },
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
                 },
                 {
-                    code: '9903.85.03',
-                    name: 'Exemption: Derivative products < 10% aluminum',
-                    description: 'Products containing less than 10% aluminum by weight are exempt',
-                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    code: 'US_ORIGIN_ALUMINUM',
+                    name: 'U.S.-Origin Aluminum Exemption',
+                    description: 'Derivative aluminum articles made exclusively from aluminum smelted and cast in the United States qualify for exemption from Section 232 duties.',
+                    appliesToHsCodes: ['99038504', '99038507', '99038508', '99038509'],
                     effect: 'EXEMPT',
                     conditions: {
-                        aluminumPercentage: { max: 10 }
-                    }
+                        usOrigin: true,
+                        smeltedAndCastInUS: true
+                    },
+                    source: 'CBP Section 232 FAQs; Presidential Proclamation'
+                },
+                {
+                    code: 'PRODUCT_EXCLUSION',
+                    name: 'Commerce Product-Specific Exclusion',
+                    description: 'Time-limited product exclusion granted by U.S. Department of Commerce (valid 1 year or until quantity exhausted). NOTE: Commerce is no longer processing new exclusion requests as of Feb 10, 2025.',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508', '99038509'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        requiresExclusionApproval: true,
+                        requiresIORMatch: true,
+                        quantityLimited: true
+                    },
+                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)'
                 }
             ],
-            // Section 301 China tariffs
+            // Section 301 China tariffs - UPDATED WITH RESEARCH
             'section_301': [
                 {
-                    code: '9903.88.01',
-                    name: 'Product-Specific Exclusion',
-                    description: 'Certain products have been granted product-specific exclusions from Section 301',
-                    appliesToHsCodes: ['99038803'],
+                    code: '9903.88.69',
+                    name: 'USTR Product-Specific Exclusion (164 products)',
+                    description: '164 product-specific exclusions covering certain industrial equipment, EVs, batteries, critical minerals, semiconductors and solar cells. Extended through November 10, 2026.',
+                    appliesToHsCodes: ['99038803', '99038804', '99038809', '99038815'],
                     effect: 'EXEMPT',
                     conditions: {
-                        requiresExclusionRequest: true
-                    }
+                        requiresProductMatch: true,
+                        mustMatchDetailedDescription: true
+                    },
+                    source: 'USTR Federal Register Notice; U.S. note 20(vvv) to subchapter III of chapter 99'
+                },
+                {
+                    code: '9903.88.70',
+                    name: 'USTR Manufacturing Equipment Exclusion (14 products)',
+                    description: '14 exclusions for manufacturing equipment related to solar manufacturing and other technologies. Extended through November 10, 2026.',
+                    appliesToHsCodes: ['99038803', '99038804', '99038809', '99038815'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        requiresProductMatch: true,
+                        mustMatchDetailedDescription: true,
+                        manufacturingEquipment: true
+                    },
+                    source: 'USTR Federal Register Notice; U.S. note 20(www) to subchapter III of chapter 99'
+                },
+                {
+                    code: 'SECTION_321',
+                    name: 'De Minimis Exemption (Section 321)',
+                    description: 'Products properly entered under Section 321 (de minimis shipments) are not subject to Section 301 duties. Note: Goods with quota restrictions require formal entry.',
+                    appliesToHsCodes: ['99038803', '99038804', '99038809', '99038815'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        requiresSection321Entry: true,
+                        noQuotaRestrictions: true
+                    },
+                    source: 'CBP Section 301 Trade Remedies FAQs'
+                },
+                {
+                    code: 'CHAPTER_98',
+                    name: 'Chapter 98 Provisions',
+                    description: 'Duties do not apply to entries properly claimed under Chapter 98 provisions (except 9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80 where duties apply to specific value components).',
+                    appliesToHsCodes: ['99038803', '99038804', '99038809', '99038815'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        requiresChapter98Entry: true,
+                        excludesCertainSubheadings: true
+                    },
+                    source: 'CBP Section 301 Trade Remedies FAQs'
+                }
+            ],
+            // IEEPA Reciprocal Tariffs
+            'ieepa_reciprocal': [
+                {
+                    code: '9903.01.33',
+                    name: 'Section 232 Exemption from Reciprocal Tariffs',
+                    description: 'Products subject to Section 232 Steel, Aluminum, Autos tariffs are exempt from IEEPA Reciprocal tariffs. The steel/aluminum/copper content line can claim this exception.',
+                    appliesToHsCodes: ['99030124', '99030120'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        subjectToSection232: true
+                    },
+                    source: 'CBP IEEPA FAQs; CSMS guidance on reciprocal tariffs'
                 }
             ]
         };
@@ -377,7 +473,7 @@
         }
 
         function displayDutyComparison() {
-            const dutiesBefore = document.getElementById('dutiesBeforeSection232 Steel & Aluminum Derivatives');
+            const dutiesBefore = document.getElementById('dutiesBefore');
             const dutiesAfter = document.getElementById('dutiesAfter');
 
             dutiesBefore.innerHTML = '';
