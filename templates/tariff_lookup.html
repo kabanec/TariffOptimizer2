@@ -295,6 +295,34 @@
             <!-- Error Display -->
             <div id="errorDisplay" style="display: none;"></div>
 
+            <!-- Section 232 Parameter Selection -->
+            <div id="section232Panel" class="section" style="display: none;">
+                <h2 class="section-title">Section 232 - Additional Parameters Required</h2>
+                <div class="alert-warning">
+                    <strong>⚠️ Section 232 Automotive Duties Detected</strong><br>
+                    Please specify the automotive category to calculate accurate duties.
+                </div>
+                <div class="compact-form">
+                    <div class="form-group">
+                        <label for="section232Auto">Automotive Category *</label>
+                        <select id="section232Auto" class="form-control" required>
+                            <option value="">-- Select Category --</option>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                        <span class="help-text">Select the automotive category that applies to your shipment</span>
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="recalculateWithSection232()">
+                            <span class="btn-icon">🔍</span>
+                            Recalculate with Parameters
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="cancelSection232()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Results Section -->
             <div id="resultsSection" style="display: none;">
                 <!-- Result Hero Card -->
@@ -408,12 +436,90 @@
                     throw new Error(data.error || 'Failed to calculate tariffs');
                 }
 
+                // Check if Section 232 automotive parameters are required
+                if (data.section232AutomotiveOptions && data.section232AutomotiveOptions.length > 0) {
+                    showSection232Panel(data.section232AutomotiveOptions);
+                } else {
+                    displayResults(data, shipmentValue);
+                }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function showSection232Panel(options) {
+            // Hide results, show Section 232 parameter panel
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('section232Panel').style.display = 'block';
+
+            // Populate dropdown with options
+            const select = document.getElementById('section232Auto');
+            select.innerHTML = '<option value="">-- Select Category --</option>';
+
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.keyword;
+                option.textContent = opt.keyword + ' - ' + opt.description;
+                select.appendChild(option);
+            });
+        }
+
+        async function recalculateWithSection232() {
+            const section232Auto = document.getElementById('section232Auto').value;
+            if (!section232Auto) {
+                alert('Please select an automotive category');
+                return;
+            }
+
+            // Hide section 232 panel, show loading
+            document.getElementById('section232Panel').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            const hsCode = document.getElementById('hsCode').value.trim();
+            const originCountry = document.getElementById('originCountry').value;
+            const destinationCountry = document.getElementById('destinationCountry').value;
+            const entryDate = document.getElementById('entryDate').value;
+            const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
+            const modeOfTransport = document.getElementById('modeOfTransport').value;
+            const calculatorType = document.getElementById('calculatorType').value;
+
+            try {
+                const response = await fetch('/api/tariff-lookup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hsCode,
+                        originCountry,
+                        destinationCountry,
+                        entryDate,
+                        shipmentValue,
+                        modeOfTransport,
+                        calculatorType,
+                        section232Auto: section232Auto,
+                        environment: 'sandbox'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to calculate tariffs');
+                }
+
                 displayResults(data, shipmentValue);
             } catch (error) {
                 showError(error.message);
             } finally {
                 document.getElementById('loadingIndicator').style.display = 'none';
             }
+        }
+
+        function cancelSection232() {
+            document.getElementById('section232Panel').style.display = 'none';
         }
 
         function displayResults(data, shipmentValue) {
