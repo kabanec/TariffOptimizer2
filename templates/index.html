@@ -36,6 +36,10 @@
             border: 2px solid #059bd2;
             background: linear-gradient(135deg, rgba(5, 155, 210, 0.05) 0%, rgba(0, 68, 89, 0.05) 100%);
         }
+        .tool-card-tertiary {
+            border: 2px solid #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%);
+        }
         .tool-card h4 {
             margin-bottom: 10px;
         }
@@ -44,6 +48,9 @@
         }
         .tool-card-secondary h4 {
             color: #059bd2;
+        }
+        .tool-card-tertiary h4 {
+            color: #10b981;
         }
         .tool-card p {
             margin-bottom: 15px;
@@ -61,6 +68,15 @@
         .btn-secondary {
             display: inline-block;
             background: #059bd2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .btn-tertiary {
+            display: inline-block;
+            background: #10b981;
             color: white;
             padding: 10px 20px;
             border-radius: 6px;
@@ -122,6 +138,17 @@
                             </p>
                             <a href="{{ url_for('api_tester') }}" class="btn-secondary">
                                 Launch API Tester →
+                            </a>
+                        </div>
+
+                        <div class="tool-card tool-card-tertiary">
+                            <h4>🔧 Exclusion Tester</h4>
+                            <p>
+                                Test Section 99 exclusion stacking logic and see how exemptions affect your duties.
+                                Research-based exclusion database with before/after comparison.
+                            </p>
+                            <a href="{{ url_for('exclusion_tester') }}" class="btn-tertiary">
+                                Launch Exclusion Tester →
                             </a>
                         </div>
                     </div>

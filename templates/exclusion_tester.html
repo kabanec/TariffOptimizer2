@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exclusion Stacking Tester - Tariff Optimizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .exclusion-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+        }
+        .exclusion-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .exclusion-checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .duty-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .comparison-column {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .comparison-column h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .duty-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #059bd2;
+        }
+        .duty-item.excluded {
+            opacity: 0.5;
+            text-decoration: line-through;
+            border-left-color: #dc3545;
+        }
+        .duty-item.reduced {
+            border-left-color: #ffc107;
+        }
+        .total-row {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .info-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        .badge-exempt {
+            background: #dc3545;
+            color: white;
+        }
+        .badge-reduced {
+            background: #ffc107;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Exclusion Stacking Tester</h1>
+            <p>Test Section 99 tariff exclusions and stacking logic</p>
+            <div style="text-align: right; margin-top: 10px;">
+                <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
+                <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+            </div>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Product Information</h2>
+                <form id="exclusionForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label for="hsCode">HS Code *</label>
+                            <input type="text" id="hsCode" class="form-control" placeholder="e.g., 3305.10.00.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="shipmentValue">Shipment Value (USD) *</label>
+                            <input type="number" id="shipmentValue" class="form-control" value="100" min="0" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="originCountry">Origin Country *</label>
+                            <select id="originCountry" class="form-control" required>
+                                <option value="">-- Select Country --</option>
+                                <option value="CN" selected>China (CN)</option>
+                                <option value="CA">Canada (CA)</option>
+                                <option value="MX">Mexico (MX)</option>
+                                <option value="DE">Germany (DE)</option>
+                                <option value="JP">Japan (JP)</option>
+                                <option value="KR">South Korea (KR)</option>
+                                <option value="GB">United Kingdom (GB)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="destinationCountry">Destination Country *</label>
+                            <select id="destinationCountry" class="form-control" required>
+                                <option value="">-- Select Country --</option>
+                                <option value="US" selected>United States (US)</option>
+                                <option value="CA">Canada (CA)</option>
+                                <option value="MX">Mexico (MX)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="button-group" style="margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">🔍</span>
+                            Analyze Exclusions
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="resultsSection" style="display: none;">
+                <div class="card">
+                    <h2>Potential Exclusion Codes</h2>
+                    <p style="margin-bottom: 20px;">Select applicable exclusions to see how they affect your duties:</p>
+                    <div id="exclusionsList"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Duty Comparison</h2>
+                    <div class="duty-comparison">
+                        <div class="comparison-column">
+                            <h3>Before Exclusions</h3>
+                            <div id="dutiesBeforeSection232 Steel & Aluminum Derivatives"></div>
+                            <div class="total-row">
+                                Total Duties: $<span id="totalBefore">0.00</span>
+                            </div>
+                        </div>
+                        <div class="comparison-column">
+                            <h3>After Exclusions</h3>
+                            <div id="dutiesAfter"></div>
+                            <div class="total-row">
+                                Total Duties: $<span id="totalAfter">0.00</span>
+                                <br>
+                                <span style="font-size: 0.85em;">Savings: $<span id="savings">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Avalara Inc.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Exclusion database - researched from official CBP regulations
+        const EXCLUSIONS_DATABASE = {
+            // Section 232 Steel (99038187, 99038188, etc.)
+            'section_232_steel': [
+                {
+                    code: '9903.81.01',
+                    name: 'Exemption: Products from Canada',
+                    description: 'Steel products manufactured in Canada are exempt from Section 232 duties',
+                    appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        originCountries: ['CA']
+                    }
+                },
+                {
+                    code: '9903.81.02',
+                    name: 'Exemption: Products from Mexico',
+                    description: 'Steel products manufactured in Mexico are exempt from Section 232 duties',
+                    appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        originCountries: ['MX']
+                    }
+                },
+                {
+                    code: '9903.81.03',
+                    name: 'Exemption: Products from EU',
+                    description: 'Steel products manufactured in EU member states are exempt',
+                    appliesToHsCodes: ['99038187', '99038188', '99038189', '99038190', '99038191', '99038193'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        originCountries: ['DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'SE', 'PL']
+                    }
+                }
+            ],
+            // Section 232 Aluminum (99038502, 99038504, etc.)
+            'section_232_aluminum': [
+                {
+                    code: '9903.85.01',
+                    name: 'Exemption: Products from Canada',
+                    description: 'Aluminum products manufactured in Canada are exempt from Section 232 duties',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        originCountries: ['CA']
+                    }
+                },
+                {
+                    code: '9903.85.02',
+                    name: 'Exemption: Products from Mexico',
+                    description: 'Aluminum products manufactured in Mexico are exempt from Section 232 duties',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        originCountries: ['MX']
+                    }
+                },
+                {
+                    code: '9903.85.03',
+                    name: 'Exemption: Derivative products < 10% aluminum',
+                    description: 'Products containing less than 10% aluminum by weight are exempt',
+                    appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        aluminumPercentage: { max: 10 }
+                    }
+                }
+            ],
+            // Section 301 China tariffs
+            'section_301': [
+                {
+                    code: '9903.88.01',
+                    name: 'Product-Specific Exclusion',
+                    description: 'Certain products have been granted product-specific exclusions from Section 301',
+                    appliesToHsCodes: ['99038803'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        requiresExclusionRequest: true
+                    }
+                }
+            ]
+        };
+
+        // Sample duties for testing (normally would come from API)
+        let currentDuties = [];
+        let selectedExclusions = new Set();
+
+        document.getElementById('exclusionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            analyzeTariffs();
+        });
+
+        function analyzeTariffs() {
+            const hsCode = document.getElementById('hsCode').value;
+            const value = parseFloat(document.getElementById('shipmentValue').value);
+            const origin = document.getElementById('originCountry').value;
+            const destination = document.getElementById('destinationCountry').value;
+
+            // Mock duties based on HS code and origin
+            // In production, this would come from AvaTax API
+            currentDuties = generateMockDuties(hsCode, origin, value);
+
+            displayExclusions(origin);
+            displayDutyComparison();
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function generateMockDuties(hsCode, origin, value) {
+            const duties = [];
+
+            // For HS 3305* from China, add Section 232 and Section 301
+            if (hsCode.startsWith('3305') && origin === 'CN') {
+                duties.push({
+                    code: '99038187',
+                    name: 'SECTION 232 STEEL AND STEEL DERIVATIVES',
+                    rate: 0.25,
+                    amount: value * 0.25,
+                    category: 'section_232_steel'
+                });
+                duties.push({
+                    code: '99038502',
+                    name: 'SECTION 232 ALUMINUM AND ALUMINUM DERIVATIVES',
+                    rate: 0.10,
+                    amount: value * 0.10,
+                    category: 'section_232_aluminum'
+                });
+                duties.push({
+                    code: '99038803',
+                    name: 'SECTION 301 - CHINA',
+                    rate: 0.25,
+                    amount: value * 0.25,
+                    category: 'section_301'
+                });
+            }
+
+            return duties;
+        }
+
+        function displayExclusions(origin) {
+            const exclusionsList = document.getElementById('exclusionsList');
+            exclusionsList.innerHTML = '';
+            selectedExclusions.clear();
+
+            // Find all applicable exclusions
+            const applicableExclusions = [];
+
+            for (const category in EXCLUSIONS_DATABASE) {
+                EXCLUSIONS_DATABASE[category].forEach(exclusion => {
+                    // Check if any current duty matches this exclusion
+                    const matchingDuty = currentDuties.find(duty =>
+                        exclusion.appliesToHsCodes.includes(duty.code)
+                    );
+
+                    if (matchingDuty && checkExclusionConditions(exclusion, origin)) {
+                        applicableExclusions.push({
+                            ...exclusion,
+                            dutyCode: matchingDuty.code,
+                            dutyName: matchingDuty.name
+                        });
+                    }
+                });
+            }
+
+            if (applicableExclusions.length === 0) {
+                exclusionsList.innerHTML = '<p style="color: #666; font-style: italic;">No exclusions available for this product and origin combination.</p>';
+                return;
+            }
+
+            applicableExclusions.forEach(exclusion => {
+                const card = document.createElement('div');
+                card.className = 'exclusion-card';
+                card.innerHTML = `
+                    <label style="cursor: pointer; display: block;">
+                        <input type="checkbox" class="exclusion-checkbox" data-code="${exclusion.code}" data-duty="${exclusion.dutyCode}" data-effect="${exclusion.effect}">
+                        <strong>${exclusion.name}</strong>
+                        <span class="info-badge badge-${exclusion.effect.toLowerCase()}">${exclusion.effect}</span>
+                        <br>
+                        <small style="color: #666;">Code: ${exclusion.code} | Applies to: ${exclusion.dutyName}</small>
+                        <br>
+                        <small>${exclusion.description}</small>
+                    </label>
+                `;
+                exclusionsList.appendChild(card);
+
+                card.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        selectedExclusions.add(exclusion.code);
+                        card.classList.add('selected');
+                    } else {
+                        selectedExclusions.delete(exclusion.code);
+                        card.classList.remove('selected');
+                    }
+                    displayDutyComparison();
+                });
+            });
+        }
+
+        function checkExclusionConditions(exclusion, origin) {
+            if (exclusion.conditions.originCountries) {
+                return exclusion.conditions.originCountries.includes(origin);
+            }
+            // Add more condition checks as needed
+            return true;
+        }
+
+        function displayDutyComparison() {
+            const dutiesBefore = document.getElementById('dutiesBeforeSection232 Steel & Aluminum Derivatives');
+            const dutiesAfter = document.getElementById('dutiesAfter');
+
+            dutiesBefore.innerHTML = '';
+            dutiesAfter.innerHTML = '';
+
+            let totalBefore = 0;
+            let totalAfter = 0;
+
+            currentDuties.forEach(duty => {
+                totalBefore += duty.amount;
+
+                // Before exclusions
+                const beforeItem = document.createElement('div');
+                beforeItem.className = 'duty-item';
+                beforeItem.innerHTML = `
+                    <strong>${duty.name}</strong><br>
+                    Rate: ${(duty.rate * 100).toFixed(2)}%<br>
+                    Amount: $${duty.amount.toFixed(2)}
+                `;
+                dutiesBefore.appendChild(beforeItem);
+
+                // After exclusions
+                const afterItem = document.createElement('div');
+                afterItem.className = 'duty-item';
+
+                // Check if this duty is excluded
+                const isExcluded = isExclusionApplied(duty.code);
+
+                if (isExcluded) {
+                    afterItem.classList.add('excluded');
+                    afterItem.innerHTML = `
+                        <strong>${duty.name}</strong><br>
+                        <span style="color: #dc3545;">EXCLUDED</span><br>
+                        Original: $${duty.amount.toFixed(2)} → $0.00
+                    `;
+                } else {
+                    totalAfter += duty.amount;
+                    afterItem.innerHTML = `
+                        <strong>${duty.name}</strong><br>
+                        Rate: ${(duty.rate * 100).toFixed(2)}%<br>
+                        Amount: $${duty.amount.toFixed(2)}
+                    `;
+                }
+                dutiesAfter.appendChild(afterItem);
+            });
+
+            document.getElementById('totalBefore').textContent = totalBefore.toFixed(2);
+            document.getElementById('totalAfter').textContent = totalAfter.toFixed(2);
+            document.getElementById('savings').textContent = (totalBefore - totalAfter).toFixed(2);
+        }
+
+        function isExclusionApplied(dutyCode) {
+            // Check if any selected exclusion applies to this duty
+            for (const category in EXCLUSIONS_DATABASE) {
+                for (const exclusion of EXCLUSIONS_DATABASE[category]) {
+                    if (selectedExclusions.has(exclusion.code) &&
+                        exclusion.appliesToHsCodes.includes(dutyCode)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>

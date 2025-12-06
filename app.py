@@ -629,6 +629,13 @@ def tariff_lookup():
     return render_template('tariff_lookup.html', username=session.get('username'))
 
 
+@app.route('/exclusion-tester')
+@login_required
+def exclusion_tester():
+    """Exclusion stacking tester page"""
+    return render_template('exclusion_tester.html', username=session.get('username'))
+
+
 @app.route('/api/tariff-lookup', methods=['POST'])
 def api_tariff_lookup():
     """API endpoint for tariff lookup - no auth required for easier testing"""
