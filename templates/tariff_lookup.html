@@ -261,15 +261,6 @@
                                     <option value="MX">Mexico (MX)</option>
                                 </select>
                             </div>
-
-                            <div class="form-group">
-                                <label for="modeOfTransport">Mode of Transport</label>
-                                <select id="modeOfTransport" class="form-control">
-                                    <option value="AIR">Air</option>
-                                    <option value="OCEAN">Ocean</option>
-                                    <option value="GROUND">Ground</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -421,7 +412,6 @@
             const destinationCountry = document.getElementById('destinationCountry').value;
             const entryDate = document.getElementById('entryDate').value;
             const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
-            const modeOfTransport = document.getElementById('modeOfTransport').value;
             const commodityDescription = document.getElementById('commodityDescription').value;
             const calculatorType = document.getElementById('calculatorType').value;
 
@@ -442,7 +432,7 @@
                         destinationCountry,
                         entryDate,
                         shipmentValue,
-                        modeOfTransport,
+                        modeOfTransport: 'AIR', // Default to AIR
                         calculatorType,
                         environment: 'sandbox'
                     })
@@ -463,16 +453,18 @@
                 console.log('Section 232 Metal Options:', data.section232MetalOptions);
 
                 // Check if Section 232 parameters are required
-                // Priority: Automotive first, then metals
-                if (data.section232AutomotiveOptions && data.section232AutomotiveOptions.length > 0) {
+                // IMPORTANT: Section 232 only applies to courier/air/ocean, NOT postal
+                const isPostal = calculatorType === 'postal';
+
+                if (!isPostal && data.section232AutomotiveOptions && data.section232AutomotiveOptions.length > 0) {
                     const hasMetals = data.section232MetalOptions && data.section232MetalOptions.length > 0;
                     console.log('Showing automotive panel, hasMetals:', hasMetals);
                     showSection232AutomotivePanel(data.section232AutomotiveOptions, hasMetals);
-                } else if (data.section232MetalOptions && data.section232MetalOptions.length > 0) {
+                } else if (!isPostal && data.section232MetalOptions && data.section232MetalOptions.length > 0) {
                     console.log('Showing metals panel with options:', data.section232MetalOptions);
                     showSection232MetalsPanel(data.section232MetalOptions);
                 } else {
-                    console.log('No Section 232 parameters required, showing results');
+                    console.log('No Section 232 parameters required (or postal calculator), showing results');
                     displayResults(data, shipmentValue);
                 }
             } catch (error) {
@@ -599,7 +591,6 @@
             const destinationCountry = document.getElementById('destinationCountry').value;
             const entryDate = document.getElementById('entryDate').value;
             const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
-            const modeOfTransport = document.getElementById('modeOfTransport').value;
             const calculatorType = document.getElementById('calculatorType').value;
 
             try {
@@ -614,7 +605,7 @@
                         destinationCountry,
                         entryDate,
                         shipmentValue,
-                        modeOfTransport,
+                        modeOfTransport: 'AIR',
                         calculatorType,
                         section232Auto: section232Auto,
                         environment: 'sandbox'
@@ -684,7 +675,6 @@
             const destinationCountry = document.getElementById('destinationCountry').value;
             const entryDate = document.getElementById('entryDate').value;
             const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
-            const modeOfTransport = document.getElementById('modeOfTransport').value;
             const calculatorType = document.getElementById('calculatorType').value;
 
             try {
@@ -699,7 +689,7 @@
                         destinationCountry,
                         entryDate,
                         shipmentValue,
-                        modeOfTransport,
+                        modeOfTransport: 'AIR',
                         calculatorType,
                         metalComposition: metalComposition,
                         environment: 'sandbox'
