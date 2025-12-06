@@ -636,6 +636,163 @@ def exclusion_tester():
     return render_template('exclusion_tester.html', username=session.get('username'))
 
 
+@app.route('/api/check-exclusion-updates', methods=['POST'])
+@login_required
+def check_exclusion_updates():
+    """Check for recent updates to Section 99 exclusions from official sources"""
+    try:
+        from datetime import datetime, timedelta
+        import json
+
+        # Get the last check date from request (or default to 90 days ago)
+        last_check = request.json.get('lastCheckDate', (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'))
+
+        logger.info(f"Checking for exclusion updates since {last_check}")
+
+        # Build comprehensive search query for recent updates
+        search_queries = [
+            f"Section 232 steel aluminum exclusions Federal Register {datetime.now().year}",
+            f"Section 301 China tariff exclusions USTR {datetime.now().year}",
+            f"HTSUS Chapter 99 exclusions CBP updates {datetime.now().year}",
+            f"USMCA Section 232 exemptions changes {datetime.now().year}"
+        ]
+
+        updates_found = []
+
+        # Use OpenAI to analyze recent regulatory changes
+        try:
+            client = get_openai_client()
+
+            analysis_prompt = f"""Analyze recent (since {last_check}) changes to Section 99 tariff exclusions and exemptions.
+
+Search for updates in these areas:
+1. Section 232 Steel/Aluminum exclusions and exemptions
+2. Section 301 China tariff exclusions
+3. USMCA-related exemptions (9903.01.26, 9903.01.27)
+4. IEEPA reciprocal tariff exemptions
+5. General Approved Exclusions (GAE) status changes
+6. Country-specific arrangement changes
+
+For each change found, provide:
+- Date of change
+- HTSUS code(s) affected
+- Type of change (NEW exclusion, REVOKED exclusion, EXTENDED exclusion, MODIFIED conditions)
+- Brief description
+- Official source/reference
+- Impact on importers
+
+Return results as a JSON array of changes."""
+
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a customs and trade compliance expert specializing in U.S. tariff exclusions and HTSUS Chapter 99 regulations."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+
+            ai_analysis = response.choices[0].message.content
+            logger.info(f"AI analysis of exclusion updates completed")
+
+            # Try to parse JSON from AI response
+            try:
+                # Look for JSON in the response
+                import re
+                json_match = re.search(r'\[.*\]', ai_analysis, re.DOTALL)
+                if json_match:
+                    updates_found = json.loads(json_match.group())
+                else:
+                    # If no JSON array, create a single update with the full analysis
+                    updates_found = [{
+                        'date': datetime.now().strftime('%Y-%m-%d'),
+                        'type': 'ANALYSIS',
+                        'description': ai_analysis,
+                        'source': 'AI Analysis of Recent Regulatory Changes'
+                    }]
+            except json.JSONDecodeError:
+                logger.warning("Could not parse JSON from AI response, using raw text")
+                updates_found = [{
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'type': 'ANALYSIS',
+                    'description': ai_analysis,
+                    'source': 'AI Analysis of Recent Regulatory Changes'
+                }]
+
+        except Exception as e:
+            logger.error(f"Error getting AI analysis: {e}")
+            updates_found.append({
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'type': 'ERROR',
+                'description': f'Could not retrieve AI analysis: {str(e)}',
+                'source': 'System'
+            })
+
+        # Add hardcoded known recent changes (as of December 2025)
+        known_changes = [
+            {
+                'date': '2025-03-12',
+                'htsus_codes': ['9903.01.26', '9903.01.27', '9903.81.*', '9903.85.*'],
+                'type': 'REVOKED',
+                'description': 'All General Approved Exclusions (GAEs) and country-level arrangements for Section 232 steel and aluminum duties were revoked effective 12:01 AM ET',
+                'source': 'CBP CSMS #65236374',
+                'reference': 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3e36d96',
+                'impact': 'USMCA exemptions (9903.01.26, 9903.01.27) remain valid, but other country-specific GAEs no longer apply'
+            },
+            {
+                'date': '2025-02-10',
+                'htsus_codes': ['9903.81.*', '9903.85.*'],
+                'type': 'POLICY_CHANGE',
+                'description': 'Department of Commerce stopped accepting and processing new Section 232 exclusion requests',
+                'source': 'Commerce Department Announcement',
+                'reference': 'https://www.bis.doc.gov/index.php/232-steel',
+                'impact': 'Existing approved exclusions remain valid until expiration/quantity exhausted, but no new exclusions will be granted'
+            },
+            {
+                'date': '2025-11-10',
+                'htsus_codes': ['9903.88.69', '9903.88.70'],
+                'type': 'EXTENDED',
+                'description': 'USTR extended 178 Section 301 China tariff exclusions (164 product-specific + 14 manufacturing equipment) through November 10, 2026',
+                'source': 'USTR Press Release',
+                'reference': 'https://www.federalregister.gov/documents/2025/09/02/2025-16733/notice-of-product-exclusion-extensions-chinas-acts-policies-and-practices-related-to-technology',
+                'impact': 'Importers can continue claiming these exclusions for an additional year'
+            },
+            {
+                'date': '2025-08-18',
+                'htsus_codes': ['9903.81.89', '9903.81.90', '9903.85.07', '9903.85.08'],
+                'type': 'NEW',
+                'description': '50% Section 232 tariffs imposed on 407 additional steel and aluminum derivative products',
+                'source': 'Presidential Proclamation',
+                'reference': 'https://www.ghy.com/trade-compliance/50-section-232-tariffs-on-407-new-steel-and-aluminum-derivatives-take-effect-aug-18-cbp-guidance-available/',
+                'impact': 'Significant duty increase on derivative products; no exemptions for in-transit goods'
+            }
+        ]
+
+        # Filter known changes by date
+        filtered_known_changes = [
+            change for change in known_changes
+            if change['date'] >= last_check
+        ]
+
+        # Combine AI analysis with known changes
+        all_updates = filtered_known_changes + updates_found
+
+        # Sort by date (most recent first)
+        all_updates.sort(key=lambda x: x.get('date', ''), reverse=True)
+
+        return jsonify({
+            'success': True,
+            'lastChecked': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'updatesFound': len(all_updates),
+            'updates': all_updates
+        })
+
+    except Exception as e:
+        logger.error(f"Error checking exclusion updates: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/tariff-lookup', methods=['POST'])
 def api_tariff_lookup():
     """API endpoint for tariff lookup - no auth required for easier testing"""

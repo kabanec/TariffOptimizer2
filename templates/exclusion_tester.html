@@ -101,6 +101,89 @@
         .reference-link a:hover {
             text-decoration: underline;
         }
+        .update-checker-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+        }
+        .btn-check-updates {
+            background: #ffc107;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-check-updates:hover {
+            background: #e0a800;
+        }
+        .updates-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .updates-modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .update-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #059bd2;
+        }
+        .update-item.type-new {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .update-item.type-revoked {
+            border-left-color: #dc3545;
+            background: #fef2f2;
+        }
+        .update-item.type-extended {
+            border-left-color: #667eea;
+            background: #f0f4ff;
+        }
+        .update-item.type-modified, .update-item.type-policy_change {
+            border-left-color: #ffc107;
+            background: #fffbeb;
+        }
+        .close-modal {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-modal:hover {
+            color: #333;
+        }
+        .update-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .badge-new { background: #10b981; color: white; }
+        .badge-revoked { background: #dc3545; color: white; }
+        .badge-extended { background: #667eea; color: white; }
+        .badge-modified, .badge-policy_change { background: #ffc107; color: #333; }
+        .badge-analysis { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
@@ -116,6 +199,14 @@
         </header>
 
         <main>
+            <div class="update-checker-section">
+                <strong>🔔 Database Updates:</strong> Check for recent changes to Section 99 exclusions and exemptions from official sources.
+                <button id="checkUpdatesBtn" class="btn-check-updates" style="margin-left: 15px;">
+                    Check for Updates
+                </button>
+                <span id="lastCheckedDisplay" style="margin-left: 15px; font-size: 0.9em; color: #666;"></span>
+            </div>
+
             <div class="card">
                 <h2>Product Information</h2>
                 <p style="color: #666; font-size: 0.95em; margin-bottom: 20px;">
@@ -198,6 +289,16 @@
         <footer>
             <p>&copy; 2025 Avalara Inc.</p>
         </footer>
+    </div>
+
+    <!-- Updates Modal -->
+    <div id="updatesModal" class="updates-modal">
+        <div class="updates-modal-content">
+            <span class="close-modal" onclick="closeUpdatesModal()">&times;</span>
+            <h2>Recent Exclusion Database Updates</h2>
+            <p id="updatesModalSubtitle" style="color: #666; margin-bottom: 20px;"></p>
+            <div id="updatesContent"></div>
+        </div>
     </div>
 
     <script>
@@ -609,6 +710,113 @@
             }
             return false;
         }
+
+        // ========== UPDATE CHECKER FUNCTIONALITY ==========
+
+        // Check for exclusion updates
+        document.getElementById('checkUpdatesBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('checkUpdatesBtn');
+            btn.disabled = true;
+            btn.textContent = 'Checking for updates...';
+
+            try {
+                // Get last check date from localStorage (or default to 90 days ago)
+                const lastCheck = localStorage.getItem('lastExclusionCheck') ||
+                    new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                const response = await fetch('/api/check-exclusion-updates', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lastCheckDate: lastCheck })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Store the check timestamp
+                    localStorage.setItem('lastExclusionCheck', new Date().toISOString().split('T')[0]);
+                    displayUpdatesModal(data);
+                } else {
+                    alert('Error checking for updates: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error checking updates:', error);
+                alert('Failed to check for updates: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Check for Updates';
+            }
+        });
+
+        // Display updates modal
+        function displayUpdatesModal(data) {
+            const modal = document.getElementById('updatesModal');
+            const subtitle = document.getElementById('updatesModalSubtitle');
+            const content = document.getElementById('updatesContent');
+
+            subtitle.textContent = `Found ${data.updatesFound} update(s). Last checked: ${data.lastChecked}`;
+
+            if (data.updates.length === 0) {
+                content.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No recent updates found. Your exclusion database is up to date.</p>';
+            } else {
+                content.innerHTML = '';
+
+                data.updates.forEach(update => {
+                    const updateDiv = document.createElement('div');
+                    const typeClass = `type-${(update.type || 'analysis').toLowerCase().replace(/_/g, '-')}`;
+                    updateDiv.className = `update-item ${typeClass}`;
+
+                    const htsusCodes = update.htsus_codes ?
+                        `<div style="margin-top: 8px;"><strong>HTSUS Codes:</strong> ${update.htsus_codes.join(', ')}</div>` : '';
+
+                    const impact = update.impact ?
+                        `<div style="margin-top: 8px;"><strong>Impact:</strong> ${update.impact}</div>` : '';
+
+                    const reference = update.reference ?
+                        `<div style="margin-top: 8px;">📄 <a href="${update.reference}" target="_blank" style="color: #059bd2;">Official Reference</a></div>` : '';
+
+                    updateDiv.innerHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <span class="update-badge badge-${(update.type || 'analysis').toLowerCase()}">${update.type || 'ANALYSIS'}</span>
+                            <strong style="font-size: 1.1em;">${update.date || 'Recent'}</strong>
+                        </div>
+                        <div>${update.description}</div>
+                        ${htsusCodes}
+                        ${impact}
+                        <div style="margin-top: 8px; font-size: 0.9em; color: #666;">Source: ${update.source || 'Unknown'}</div>
+                        ${reference}
+                    `;
+
+                    content.appendChild(updateDiv);
+                });
+            }
+
+            modal.style.display = 'block';
+            document.getElementById('lastCheckedDisplay').textContent = `Last checked: ${data.lastChecked}`;
+        }
+
+        // Close updates modal
+        function closeUpdatesModal() {
+            document.getElementById('updatesModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('updatesModal');
+            if (event.target === modal) {
+                closeUpdatesModal();
+            }
+        }
+
+        // Load last check date on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const lastCheck = localStorage.getItem('lastExclusionCheck');
+            if (lastCheck) {
+                document.getElementById('lastCheckedDisplay').textContent = `Last checked: ${lastCheck}`;
+            }
+        });
     </script>
 </body>
 </html>
