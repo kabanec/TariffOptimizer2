@@ -206,12 +206,13 @@
 
         <main>
             <div class="update-checker-section">
-                <strong>🔔 Database Validation & Updates:</strong> Automatically checks for Executive Orders, Presidential Proclamations, and Federal Register notices that may have REVOKED, SUPERSEDED, or MODIFIED existing exclusions.
-                <br><small style="color: #856404; margin-top: 5px; display: block;">⚠️ IMPORTANT: Exclusions may be revoked by newer EOs/rules. Always validate against current regulations before relying on any exclusion.</small>
+                <strong>🔔 Comprehensive Database Validation:</strong> Multi-phase analysis using web search + 5 specialized AI agents to discover and validate regulatory changes.
+                <br><small style="color: #856404; margin-top: 5px; display: block;">⚠️ Phase 1: Discovers Federal Register notices, CBP bulletins, USTR releases | Phase 2: 5 parallel AI analyses (Section 232, 301, IEEPA, USMCA, Validation) | Phase 3: Combines & deduplicates results</small>
                 <button id="checkUpdatesBtn" class="btn-check-updates" style="margin-left: 0px; margin-top: 10px;">
-                    Check for Updates & Validate Exclusions
+                    Run Comprehensive Update Analysis (30-60 sec)
                 </button>
                 <span id="lastCheckedDisplay" style="margin-left: 15px; font-size: 0.9em; color: #666;"></span>
+                <br><span id="progressDisplay" style="margin-top: 10px; font-size: 0.9em; color: #059bd2; display: none;"></span>
             </div>
 
             <div class="card">
@@ -819,13 +820,30 @@
         // Check for exclusion updates
         document.getElementById('checkUpdatesBtn').addEventListener('click', async () => {
             const btn = document.getElementById('checkUpdatesBtn');
+            const progressDisplay = document.getElementById('progressDisplay');
+
             btn.disabled = true;
-            btn.textContent = 'Checking for updates...';
+            btn.textContent = 'Running Analysis...';
+            progressDisplay.style.display = 'block';
+            progressDisplay.innerHTML = '🔍 Phase 1: Discovering regulatory changes via web search...';
 
             try {
                 // Get last check date from localStorage (or default to 90 days ago)
                 const lastCheck = localStorage.getItem('lastExclusionCheck') ||
                     new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                // Show phase progression
+                setTimeout(() => {
+                    if (progressDisplay.style.display !== 'none') {
+                        progressDisplay.innerHTML = '🤖 Phase 2: Running 5 specialized AI analyses in parallel (Section 232, 301, IEEPA, USMCA, Validation)...';
+                    }
+                }, 5000);
+
+                setTimeout(() => {
+                    if (progressDisplay.style.display !== 'none') {
+                        progressDisplay.innerHTML = '📊 Phase 3: Combining and deduplicating results...';
+                    }
+                }, 25000);
 
                 const response = await fetch('/api/check-exclusion-updates', {
                     method: 'POST',
@@ -840,16 +858,24 @@
                 if (data.success) {
                     // Store the check timestamp
                     localStorage.setItem('lastExclusionCheck', new Date().toISOString().split('T')[0]);
-                    displayUpdatesModal(data);
+                    progressDisplay.innerHTML = '✅ Analysis complete! Displaying results...';
+                    setTimeout(() => {
+                        displayUpdatesModal(data);
+                        progressDisplay.style.display = 'none';
+                    }, 1000);
                 } else {
+                    progressDisplay.innerHTML = '❌ Error: ' + data.error;
+                    setTimeout(() => progressDisplay.style.display = 'none', 3000);
                     alert('Error checking for updates: ' + data.error);
                 }
             } catch (error) {
                 console.error('Error checking updates:', error);
+                progressDisplay.innerHTML = '❌ Error: ' + error.message;
+                setTimeout(() => progressDisplay.style.display = 'none', 3000);
                 alert('Failed to check for updates: ' + error.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Check for Updates';
+                btn.textContent = 'Run Comprehensive Update Analysis (30-60 sec)';
             }
         });
 

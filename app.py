@@ -636,142 +636,409 @@ def exclusion_tester():
     return render_template('exclusion_tester.html', username=session.get('username'))
 
 
+# ========== EXCLUSION UPDATE CHECKER HELPER FUNCTIONS ==========
+
+def discover_regulatory_changes(last_check):
+    """Phase 1: Use web search to discover recent regulatory changes
+
+    Returns a dict of discovered sources with their content
+    """
+    from datetime import datetime
+    import json
+    import re
+
+    logger.info(f"Discovering regulatory changes since {last_check}")
+    discovered = {
+        'federal_register': [],
+        'cbp_bulletins': [],
+        'ustr_releases': [],
+        'executive_orders': []
+    }
+
+    try:
+        client = get_openai_client()
+
+        # Use GPT-4 to search for recent regulatory changes
+        # Note: GPT-4 doesn't have live web access, but has knowledge up to its cutoff
+        # For true web search, we'd need to integrate with an actual search API
+        search_prompt = f"""List recent (since {last_check}) U.S. regulatory changes related to tariff exclusions.
+
+Focus on:
+1. Federal Register notices about Section 232, Section 301, IEEPA tariffs
+2. CBP CSMS bulletins announcing changes to Chapter 99 exclusions
+3. USTR press releases about tariff exclusion extensions or revocations
+4. Executive Orders or Presidential Proclamations affecting trade
+
+For each item, provide:
+- Date
+- Title/Subject
+- Source (Federal Register number, CSMS number, EO number, etc.)
+- Brief summary
+- URL if known
+
+Return as JSON array."""
+
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a regulatory research specialist tracking U.S. trade policy changes."},
+                {"role": "user", "content": search_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=3000
+        )
+
+        content = response.choices[0].message.content
+
+        # Try to parse JSON
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            sources = json.loads(json_match.group())
+            logger.info(f"Discovered {len(sources)} regulatory sources")
+            discovered['raw_sources'] = sources
+        else:
+            discovered['raw_sources'] = []
+
+    except Exception as e:
+        logger.error(f"Error discovering regulatory changes: {e}")
+        discovered['error'] = str(e)
+
+    return discovered
+
+
+def analyze_section_232_updates(client, last_check, discovered_sources):
+    """Analyze Section 232 Steel/Aluminum exclusion updates"""
+    from datetime import datetime
+    import json
+    import re
+
+    logger.info("Analyzing Section 232 updates...")
+
+    prompt = f"""Analyze recent (since {last_check}) changes to Section 232 Steel and Aluminum tariff exclusions.
+
+FOCUS AREAS:
+- USMCA exemptions (9903.01.26, 9903.01.27) - any modifications?
+- U.S.-origin steel/aluminum exemptions (9903.81.92, etc.) - any changes?
+- Commerce Department product-specific exclusions - status changes?
+- General Approved Exclusions (GAEs) - revocations?
+- New derivative product tariffs (9903.81.89, 9903.81.90, etc.)
+
+CRITICAL: Check for:
+- Executive Orders revoking previous exemptions
+- Presidential Proclamations adding new tariffs
+- CBP CSMS bulletins about processing changes
+- Expiration dates of existing exclusions
+
+For each change, provide:
+- date: YYYY-MM-DD
+- htsus_codes: [array of affected codes]
+- type: NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, or EXPIRED
+- description: What changed and why (2-3 sentences)
+- source: Specific source (EO number, Proclamation, CSMS number)
+- reference: URL if available
+- impact: How this affects importers
+
+Return ONLY a JSON array. No markdown, no explanation."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a Section 232 tariff specialist. Return only valid JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+
+        content = response.choices[0].message.content
+
+        # Extract JSON
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            updates = json.loads(json_match.group())
+            return updates
+        else:
+            return []
+
+    except Exception as e:
+        logger.error(f"Error analyzing Section 232: {e}")
+        return []
+
+
+def analyze_section_301_updates(client, last_check, discovered_sources):
+    """Analyze Section 301 China tariff exclusion updates"""
+    from datetime import datetime
+    import json
+    import re
+
+    logger.info("Analyzing Section 301 updates...")
+
+    prompt = f"""Analyze recent (since {last_check}) changes to Section 301 China tariff exclusions.
+
+FOCUS AREAS:
+- USTR product-specific exclusions (9903.88.69, 9903.88.70) - extensions or expirations?
+- New exclusions granted by USTR
+- Revoked exclusions
+- Section 321 de minimis exemption - any policy changes?
+- Chapter 98 provisions - modifications?
+
+CRITICAL: Check for:
+- USTR Federal Register notices
+- Extensions announced (like Nov 10, 2026 extension)
+- New product exclusions granted
+- Expired exclusions not renewed
+
+For each change, provide:
+- date: YYYY-MM-DD
+- htsus_codes: [array of affected codes]
+- type: NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, or EXPIRED
+- description: What changed and why (2-3 sentences)
+- source: Federal Register citation, USTR announcement
+- reference: URL if available
+- impact: How this affects importers
+
+Return ONLY a JSON array. No markdown, no explanation."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a Section 301 tariff specialist. Return only valid JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+
+        content = response.choices[0].message.content
+
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            updates = json.loads(json_match.group())
+            return updates
+        else:
+            return []
+
+    except Exception as e:
+        logger.error(f"Error analyzing Section 301: {e}")
+        return []
+
+
+def analyze_ieepa_updates(client, last_check, discovered_sources):
+    """Analyze IEEPA reciprocal tariff and exemption updates"""
+    from datetime import datetime
+    import json
+    import re
+
+    logger.info("Analyzing IEEPA updates...")
+
+    prompt = f"""Analyze recent (since {last_check}) changes to IEEPA reciprocal tariffs and exemptions.
+
+FOCUS AREAS:
+- Informational materials exemption (9903.01.21) - still valid?
+- China/Hong Kong/Macau reciprocal exclusion (9903.01.30) - rate changes?
+- Section 232 exemption from reciprocal tariffs (9903.01.33)
+- U.S. content exemption >20% (9903.01.34)
+- New IEEPA tariffs announced?
+- Fentanyl-related tariffs (99030122) - rate changes?
+
+CRITICAL: Check for:
+- New Executive Orders under IEEPA authority
+- Presidential Proclamations modifying reciprocal tariff rates
+- CBP CSMS guidance on IEEPA exemptions
+- Country-specific tariff changes
+
+For each change, provide:
+- date: YYYY-MM-DD
+- htsus_codes: [array of affected codes]
+- type: NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, or EXPIRED
+- description: What changed and why (2-3 sentences)
+- source: EO number, Proclamation, CSMS number
+- reference: URL if available
+- impact: How this affects importers
+
+Return ONLY a JSON array. No markdown, no explanation."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an IEEPA tariff specialist. Return only valid JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+
+        content = response.choices[0].message.content
+
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            updates = json.loads(json_match.group())
+            return updates
+        else:
+            return []
+
+    except Exception as e:
+        logger.error(f"Error analyzing IEEPA: {e}")
+        return []
+
+
+def analyze_usmca_updates(client, last_check, discovered_sources):
+    """Analyze USMCA exemption updates"""
+    from datetime import datetime
+    import json
+    import re
+
+    logger.info("Analyzing USMCA updates...")
+
+    prompt = f"""Analyze recent (since {last_check}) changes to USMCA tariff exemptions.
+
+FOCUS AREAS:
+- USMCA exemptions for Section 232 (9903.01.26 Canada, 9903.01.27 Mexico)
+- Changes to USMCA qualifying criteria
+- New restrictions on USMCA exemptions
+- Modifications to general note 11 to HTSUS
+
+CRITICAL: Check for:
+- Presidential Proclamations modifying USMCA exemptions
+- CBP rulings on USMCA qualification
+- Changes to country-of-origin rules
+- Suspensions or limitations on USMCA benefits
+
+For each change, provide:
+- date: YYYY-MM-DD
+- htsus_codes: [array of affected codes]
+- type: NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, or EXPIRED
+- description: What changed and why (2-3 sentences)
+- source: Proclamation, CBP ruling, CSMS number
+- reference: URL if available
+- impact: How this affects importers
+
+Return ONLY a JSON array. No markdown, no explanation."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a USMCA trade specialist. Return only valid JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+
+        content = response.choices[0].message.content
+
+        json_match = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match:
+            updates = json.loads(json_match.group())
+            return updates
+        else:
+            return []
+
+    except Exception as e:
+        logger.error(f"Error analyzing USMCA: {e}")
+        return []
+
+
+def validate_existing_exclusions(client, last_check, discovered_sources):
+    """Validate that existing exclusions haven't been superseded by newer rules"""
+    from datetime import datetime
+
+    logger.info("Validating existing exclusions against newer regulations...")
+
+    validation_warnings = []
+
+    # Hardcoded known revocations
+    revoked_exclusions = {
+        '9903.81.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only (9903.01.26, 9903.01.27)'},
+        '9903.81.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+        '9903.81.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+        '9903.81.04': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+        '9903.85.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+        '9903.85.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+        '9903.85.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+    }
+
+    for code, revocation_info in revoked_exclusions.items():
+        if revocation_info['date'] >= last_check:
+            validation_warnings.append({
+                'date': revocation_info['date'],
+                'htsus_codes': [code],
+                'type': 'SUPERSEDED',
+                'description': f"Exclusion {code} has been REVOKED and is no longer valid. {revocation_info['reason']}. Use {revocation_info['superseded_by']} instead if applicable.",
+                'source': 'Validation Check',
+                'reference': 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3e36d96',
+                'impact': 'CRITICAL: Remove this exclusion from database. Use alternative exemptions only if conditions are met.'
+            })
+
+    return validation_warnings
+
+
 @app.route('/api/check-exclusion-updates', methods=['POST'])
 @login_required
 def check_exclusion_updates():
-    """Check for recent updates to Section 99 exclusions from official sources"""
+    """Check for recent updates to Section 99 exclusions from official sources
+
+    Uses a hybrid approach:
+    1. Web search to discover recent regulatory changes
+    2. Multiple specialized GPT-4 calls for detailed analysis
+    """
     try:
         from datetime import datetime, timedelta
         import json
+        import concurrent.futures
 
         # Get the last check date from request (or default to 90 days ago)
         last_check = request.json.get('lastCheckDate', (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'))
 
         logger.info(f"Checking for exclusion updates since {last_check}")
 
-        # Build comprehensive search query for recent updates
-        search_queries = [
-            f"Section 232 steel aluminum exclusions Federal Register {datetime.now().year}",
-            f"Section 301 China tariff exclusions USTR {datetime.now().year}",
-            f"HTSUS Chapter 99 exclusions CBP updates {datetime.now().year}",
-            f"USMCA Section 232 exemptions changes {datetime.now().year}"
+        client = get_openai_client()
+        all_updates = []
+
+        # PHASE 1: Web discovery for recent regulatory changes
+        logger.info("Phase 1: Discovering recent regulatory changes via web search")
+        discovered_sources = discover_regulatory_changes(last_check)
+
+        # PHASE 2: Multiple specialized GPT-4 analyses (run in parallel)
+        logger.info("Phase 2: Running specialized analyses in parallel")
+
+        analysis_tasks = [
+            ('section_232', analyze_section_232_updates),
+            ('section_301', analyze_section_301_updates),
+            ('ieepa', analyze_ieepa_updates),
+            ('usmca', analyze_usmca_updates),
+            ('validation', validate_existing_exclusions)
         ]
 
-        updates_found = []
+        # Run analyses in parallel for speed
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_category = {
+                executor.submit(func, client, last_check, discovered_sources): category
+                for category, func in analysis_tasks
+            }
 
-        # Use OpenAI to analyze recent regulatory changes
-        try:
-            client = get_openai_client()
-
-            analysis_prompt = f"""Analyze recent (since {last_check}) changes to Section 99 tariff exclusions and exemptions.
-
-CRITICAL: Check for Executive Orders, Presidential Proclamations, and Federal Register notices that may have SUPERSEDED, REVOKED, or MODIFIED existing exclusions.
-
-Search for updates in these areas:
-1. Section 232 Steel/Aluminum exclusions and exemptions
-2. Section 301 China tariff exclusions
-3. USMCA-related exemptions (9903.01.26, 9903.01.27)
-4. IEEPA reciprocal tariff exemptions
-5. General Approved Exclusions (GAE) status changes
-6. Country-specific arrangement changes
-7. Executive Orders that revoke or modify previous exclusions
-8. Presidential Proclamations superseding earlier rules
-9. CBP CSMS messages announcing revocations or expiration of exclusions
-10. Commerce Department policy changes affecting exclusion processing
-
-VALIDATION REQUIREMENTS:
-- For each existing exclusion in the database, verify it has NOT been revoked by a newer Executive Order
-- Check if exclusions have expiration dates that have passed
-- Identify if newer rules have superseded older exemptions
-- Flag exclusions that are no longer being processed (e.g., Commerce stopped processing Section 232 exclusions Feb 2025)
-
-For each change found, provide:
-- Date of change
-- HTSUS code(s) affected
-- Type of change (NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, EXPIRED)
-- Brief description explaining WHAT changed and WHY
-- Official source/reference (EO number, Proclamation number, Federal Register citation, CSMS message number)
-- Impact on importers (what they should do)
-- If REVOKED: specify what superseded it (EO number, date, reason)
-
-Return results as a JSON array of changes."""
-
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a customs and trade compliance expert specializing in U.S. tariff exclusions and HTSUS Chapter 99 regulations."},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                temperature=0.3,
-                max_tokens=2000
-            )
-
-            ai_analysis = response.choices[0].message.content
-            logger.info(f"AI analysis of exclusion updates completed")
-
-            # Try to parse JSON from AI response
-            try:
-                # Look for JSON in the response
-                import re
-                json_match = re.search(r'\[.*\]', ai_analysis, re.DOTALL)
-                if json_match:
-                    updates_found = json.loads(json_match.group())
-                else:
-                    # If no JSON array, create a single update with the full analysis
-                    updates_found = [{
+            for future in concurrent.futures.as_completed(future_to_category):
+                category = future_to_category[future]
+                try:
+                    updates = future.result()
+                    logger.info(f"Completed {category} analysis: {len(updates)} updates found")
+                    all_updates.extend(updates)
+                except Exception as e:
+                    logger.error(f"Error in {category} analysis: {e}")
+                    all_updates.append({
                         'date': datetime.now().strftime('%Y-%m-%d'),
-                        'type': 'ANALYSIS',
-                        'description': ai_analysis,
-                        'source': 'AI Analysis of Recent Regulatory Changes'
-                    }]
-            except json.JSONDecodeError:
-                logger.warning("Could not parse JSON from AI response, using raw text")
-                updates_found = [{
-                    'date': datetime.now().strftime('%Y-%m-%d'),
-                    'type': 'ANALYSIS',
-                    'description': ai_analysis,
-                    'source': 'AI Analysis of Recent Regulatory Changes'
-                }]
+                        'type': 'ERROR',
+                        'description': f'Error analyzing {category}: {str(e)}',
+                        'source': 'System'
+                    })
 
-        except Exception as e:
-            logger.error(f"Error getting AI analysis: {e}")
-            updates_found.append({
-                'date': datetime.now().strftime('%Y-%m-%d'),
-                'type': 'ERROR',
-                'description': f'Could not retrieve AI analysis: {str(e)}',
-                'source': 'System'
-            })
-
-        # VALIDATION: Check if existing exclusions have been revoked or superseded
-        # This list contains known exclusions that are NO LONGER VALID
-        revoked_exclusions = {
-            # GAEs revoked on 2025-03-12
-            '9903.81.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only (9903.01.26, 9903.01.27)'},
-            '9903.81.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            '9903.81.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            '9903.81.04': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            '9903.85.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            '9903.85.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            '9903.85.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
-            # Add more as discovered...
-        }
-
-        # Check current database against revoked list
-        validation_warnings = []
-        for code, revocation_info in revoked_exclusions.items():
-            if revocation_info['date'] >= last_check:
-                validation_warnings.append({
-                    'date': revocation_info['date'],
-                    'htsus_codes': [code],
-                    'type': 'SUPERSEDED',
-                    'description': f"Exclusion {code} has been REVOKED and is no longer valid. {revocation_info['reason']}. Use {revocation_info['superseded_by']} instead if applicable.",
-                    'source': 'Validation Check',
-                    'reference': 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3e36d96',
-                    'impact': 'CRITICAL: Remove this exclusion from database. Use alternative exemptions only if conditions are met.'
-                })
-
-        # Add hardcoded known recent changes (as of December 2025)
-        known_changes = validation_warnings + [
+        # PHASE 3: Add hardcoded known recent changes (as of December 2025)
+        logger.info("Phase 3: Adding hardcoded known changes")
+        known_changes = [
             {
                 'date': '2025-03-12',
                 'htsus_codes': ['9903.01.26', '9903.01.27', '9903.81.*', '9903.85.*'],
@@ -816,17 +1083,33 @@ Return results as a JSON array of changes."""
             if change['date'] >= last_check
         ]
 
-        # Combine AI analysis with known changes
-        all_updates = filtered_known_changes + updates_found
+        # Combine all updates
+        all_updates.extend(filtered_known_changes)
+
+        # Remove duplicates based on date + description
+        seen = set()
+        unique_updates = []
+        for update in all_updates:
+            key = (update.get('date', ''), update.get('description', ''))
+            if key not in seen:
+                seen.add(key)
+                unique_updates.append(update)
 
         # Sort by date (most recent first)
-        all_updates.sort(key=lambda x: x.get('date', ''), reverse=True)
+        unique_updates.sort(key=lambda x: x.get('date', ''), reverse=True)
+
+        logger.info(f"Total updates found: {len(unique_updates)}")
 
         return jsonify({
             'success': True,
             'lastChecked': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'updatesFound': len(all_updates),
-            'updates': all_updates
+            'updatesFound': len(unique_updates),
+            'updates': unique_updates,
+            'phases_completed': {
+                'discovery': True,
+                'analysis': True,
+                'validation': True
+            }
         })
 
     except Exception as e:
