@@ -790,7 +790,11 @@
 
             // Display AI Analysis
             const aiAnalysisDiv = document.getElementById('aiAnalysis');
-            aiAnalysisDiv.innerHTML = formatMarkdown(aiAnalysis);
+            if (aiAnalysis) {
+                aiAnalysisDiv.innerHTML = formatMarkdown(aiAnalysis);
+            } else {
+                aiAnalysisDiv.innerHTML = '<p style="color: #666; font-style: italic;">AI analysis is only available after completing Section 232 parameter selection.</p>';
+            }
 
             // Display Raw Response
             document.getElementById('rawResponse').textContent = JSON.stringify(apiResponse, null, 2);
