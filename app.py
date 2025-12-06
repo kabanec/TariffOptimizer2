@@ -775,11 +775,49 @@ def api_tariff_lookup():
             'destination_country': destination_country,
             'hs_codes': {hs_code[:2]},
             'amount': shipment_value,
-            'countries': {origin_country, destination_country}
+            'countries': {origin_country, destination_country},
+            'punitive_tariffs': punitive_tariffs
         }
 
-        # Get AI analysis
-        issue_description = f"Analyze tariff calculation for HS Code {hs_code} from {origin_country} to {destination_country}"
+        # Build detailed prompt for AI to analyze Section 99 punitive tariffs
+        punitive_details = ""
+        if punitive_tariffs:
+            punitive_details = "\n\nSection 99 Punitive Tariffs Found:\n"
+            for tariff in punitive_tariffs:
+                punitive_details += f"- {tariff.get('taxName', 'Unknown')}: {tariff.get('rate', 0)*100:.2f}% (HS {tariff.get('hsCode', 'N/A')})\n"
+                punitive_details += f"  Description: {tariff.get('description', 'N/A')}\n"
+
+        issue_description = f"""Analyze this tariff calculation and provide detailed guidance on Section 99 punitive tariff exemptions and options.
+
+Transaction Details:
+- HS Code: {hs_code}
+- Origin: {origin_country}
+- Destination: {destination_country}
+- Shipment Value: ${shipment_value}
+{punitive_details}
+
+CRITICAL INSTRUCTIONS:
+For EACH Section 99 punitive tariff found above (Section 232, Section 301, IEEPA, etc.):
+
+1. **Exemption Conditions**: List ALL possible exemptions or exclusions that could apply
+   - Country-specific exemptions (e.g., "Excluded if product manufactured in Canada, Mexico, EU")
+   - Product-specific exclusions (e.g., "Excluded if aluminum content < 10%")
+   - End-use exemptions (e.g., "Excluded if used for specific purposes")
+   - Certificate/documentation exemptions
+
+2. **Mitigation Options**: What steps can the user take to reduce or eliminate this duty?
+   - Required documentation (certificates of origin, exclusion requests, etc.)
+   - Alternative sourcing countries that are exempt
+   - Product composition thresholds
+   - Exclusion request processes
+
+3. **Additional Information Needed**: What specific data would you need from the user to determine if they qualify for an exemption?
+   - Manufacturing location details
+   - Product composition percentages
+   - End-use information
+   - Supply chain details
+
+Format your response with clear sections for each punitive tariff. Be specific and actionable."""
 
         ai_analysis = get_ai_analysis(
             user_request={'hs_code': hs_code, 'origin': origin_country, 'destination': destination_country, 'value': shipment_value},
