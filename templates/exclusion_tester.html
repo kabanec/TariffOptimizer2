@@ -75,6 +75,32 @@
             background: #ffc107;
             color: #333;
         }
+        .exclusion-details {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .logic-display {
+            margin-top: 8px;
+            padding: 8px;
+            background: #e8f4f8;
+            border-left: 3px solid #059bd2;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .reference-link {
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+        .reference-link a {
+            color: #059bd2;
+            text-decoration: none;
+        }
+        .reference-link a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -190,7 +216,9 @@
                         originCountries: ['CA'],
                         requiresUSMCA: true
                     },
-                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF origin_country == "CA" AND qualifies_for_USMCA THEN exempt from Section 232 steel duties'
                 },
                 {
                     code: '9903.01.27',
@@ -202,7 +230,9 @@
                         originCountries: ['MX'],
                         requiresUSMCA: true
                     },
-                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF origin_country == "MX" AND qualifies_for_USMCA THEN exempt from Section 232 steel duties'
                 },
                 {
                     code: '9903.81.92',
@@ -214,7 +244,9 @@
                         usOrigin: true,
                         meltedAndPouredInUS: true
                     },
-                    source: 'CBP Section 232 FAQs; Presidential Proclamation'
+                    source: 'CBP Section 232 FAQs; Presidential Proclamation',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF steel_melted_in_US == true AND steel_poured_in_US == true AND NOT (steel_scrap_remelted_outside_US) THEN apply 0% tariff-rate (exempt)'
                 },
                 {
                     code: 'PRODUCT_EXCLUSION',
@@ -227,7 +259,9 @@
                         requiresIORMatch: true,
                         quantityLimited: true
                     },
-                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)'
+                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-232-exclusions',
+                    logicDescription: 'IF has_approved_exclusion == true AND importer_of_record_matches == true AND quantity_not_exceeded == true THEN exempt (valid until expiration_date OR quantity_exhausted)'
                 }
             ],
             // Section 232 Aluminum - UPDATED WITH RESEARCH
@@ -242,7 +276,9 @@
                         originCountries: ['CA'],
                         requiresUSMCA: true
                     },
-                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF origin_country == "CA" AND qualifies_for_USMCA THEN exempt from Section 232 aluminum duties'
                 },
                 {
                     code: '9903.01.27',
@@ -254,7 +290,9 @@
                         originCountries: ['MX'],
                         requiresUSMCA: true
                     },
-                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance'
+                    source: 'USMCA general note 11 to HTSUS; CBP CSMS guidance',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF origin_country == "MX" AND qualifies_for_USMCA THEN exempt from Section 232 aluminum duties'
                 },
                 {
                     code: 'US_ORIGIN_ALUMINUM',
@@ -266,10 +304,12 @@
                         usOrigin: true,
                         smeltedAndCastInUS: true
                     },
-                    source: 'CBP Section 232 FAQs; Presidential Proclamation'
+                    source: 'CBP Section 232 FAQs; Presidential Proclamation',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/232-tariffs-aluminum-and-steel-faqs',
+                    logicDescription: 'IF aluminum_smelted_in_US == true AND aluminum_cast_in_US == true THEN exempt from Section 232 aluminum duties'
                 },
                 {
-                    code: 'PRODUCT_EXCLUSION',
+                    code: 'PRODUCT_EXCLUSION_AL',
                     name: 'Commerce Product-Specific Exclusion',
                     description: 'Time-limited product exclusion granted by U.S. Department of Commerce (valid 1 year or until quantity exhausted). NOTE: Commerce is no longer processing new exclusion requests as of Feb 10, 2025.',
                     appliesToHsCodes: ['99038502', '99038504', '99038507', '99038508', '99038509'],
@@ -279,7 +319,9 @@
                         requiresIORMatch: true,
                         quantityLimited: true
                     },
-                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)'
+                    source: 'CBP Active Section 232 Product Exclusions list (updated weekly)',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-232-exclusions',
+                    logicDescription: 'IF has_approved_exclusion == true AND importer_of_record_matches == true AND quantity_not_exceeded == true THEN exempt (valid until expiration_date OR quantity_exhausted)'
                 }
             ],
             // Section 301 China tariffs - UPDATED WITH RESEARCH
@@ -294,7 +336,9 @@
                         requiresProductMatch: true,
                         mustMatchDetailedDescription: true
                     },
-                    source: 'USTR Federal Register Notice; U.S. note 20(vvv) to subchapter III of chapter 99'
+                    source: 'USTR Federal Register Notice; U.S. note 20(vvv) to subchapter III of chapter 99',
+                    reference: 'https://www.federalregister.gov/documents/2025/09/02/2025-16733/notice-of-product-exclusion-extensions-chinas-acts-policies-and-practices-related-to-technology',
+                    logicDescription: 'IF product_description_matches_USTR_list == true AND origin_country == "CN" THEN exempt from Section 301 duties (valid through Nov 10, 2026)'
                 },
                 {
                     code: '9903.88.70',
@@ -307,7 +351,9 @@
                         mustMatchDetailedDescription: true,
                         manufacturingEquipment: true
                     },
-                    source: 'USTR Federal Register Notice; U.S. note 20(www) to subchapter III of chapter 99'
+                    source: 'USTR Federal Register Notice; U.S. note 20(www) to subchapter III of chapter 99',
+                    reference: 'https://www.federalregister.gov/documents/2025/09/02/2025-16733/notice-of-product-exclusion-extensions-chinas-acts-policies-and-practices-related-to-technology',
+                    logicDescription: 'IF product_description_matches_USTR_manufacturing_equipment_list == true AND origin_country == "CN" THEN exempt from Section 301 duties (valid through Nov 10, 2026)'
                 },
                 {
                     code: 'SECTION_321',
@@ -319,7 +365,9 @@
                         requiresSection321Entry: true,
                         noQuotaRestrictions: true
                     },
-                    source: 'CBP Section 301 Trade Remedies FAQs'
+                    source: 'CBP Section 301 Trade Remedies FAQs',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-301-trade-remedies/faqs',
+                    logicDescription: 'IF entry_type == "Section_321" AND shipment_value <= de_minimis_threshold AND NOT (has_quota_restrictions) THEN exempt from Section 301 duties'
                 },
                 {
                     code: 'CHAPTER_98',
@@ -331,7 +379,9 @@
                         requiresChapter98Entry: true,
                         excludesCertainSubheadings: true
                     },
-                    source: 'CBP Section 301 Trade Remedies FAQs'
+                    source: 'CBP Section 301 Trade Remedies FAQs',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-301-trade-remedies/faqs',
+                    logicDescription: 'IF properly_entered_under_chapter_98 == true AND NOT (subheading IN ["9802.00.40", "9802.00.50", "9802.00.60", "9802.00.80"]) THEN exempt from Section 301 duties'
                 }
             ],
             // IEEPA Reciprocal Tariffs
@@ -345,7 +395,9 @@
                     conditions: {
                         subjectToSection232: true
                     },
-                    source: 'CBP IEEPA FAQs; CSMS guidance on reciprocal tariffs'
+                    source: 'CBP IEEPA FAQs; CSMS guidance on reciprocal tariffs',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/trade-remedies/IEEPA-FAQ',
+                    logicDescription: 'IF subject_to_section_232_tariffs == true (steel/aluminum/autos/copper content) THEN exempt from IEEPA reciprocal tariffs under 9903.01.33'
                 }
             ]
         };
@@ -438,6 +490,23 @@
             applicableExclusions.forEach(exclusion => {
                 const card = document.createElement('div');
                 card.className = 'exclusion-card';
+
+                // Build conditions display
+                let conditionsHTML = '<div class="exclusion-details"><strong>Conditions:</strong><br>';
+                for (const [key, value] of Object.entries(exclusion.conditions)) {
+                    conditionsHTML += `• ${key}: ${Array.isArray(value) ? value.join(', ') : JSON.stringify(value)}<br>`;
+                }
+                conditionsHTML += '</div>';
+
+                // Build logic display
+                const logicHTML = exclusion.logicDescription ?
+                    `<div class="logic-display"><strong>Logic:</strong> ${exclusion.logicDescription}</div>` : '';
+
+                // Build reference link
+                const referenceHTML = exclusion.reference ?
+                    `<div class="reference-link">📄 <a href="${exclusion.reference}" target="_blank">Official Reference</a> | Source: ${exclusion.source}</div>` :
+                    `<div class="reference-link">Source: ${exclusion.source}</div>`;
+
                 card.innerHTML = `
                     <label style="cursor: pointer; display: block;">
                         <input type="checkbox" class="exclusion-checkbox" data-code="${exclusion.code}" data-duty="${exclusion.dutyCode}" data-effect="${exclusion.effect}">
@@ -448,6 +517,9 @@
                         <br>
                         <small>${exclusion.description}</small>
                     </label>
+                    ${conditionsHTML}
+                    ${logicHTML}
+                    ${referenceHTML}
                 `;
                 exclusionsList.appendChild(card);
 
