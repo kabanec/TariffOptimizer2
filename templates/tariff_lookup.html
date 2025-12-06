@@ -415,10 +415,12 @@
             const commodityDescription = document.getElementById('commodityDescription').value;
             const calculatorType = document.getElementById('calculatorType').value;
 
-            // Show loading
+            // Show loading and hide all panels
             document.getElementById('loadingIndicator').style.display = 'block';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('errorDisplay').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'none';
+            document.getElementById('section232MetalsPanel').style.display = 'none';
 
             try {
                 const response = await fetch('/api/tariff-lookup', {
