@@ -779,15 +779,20 @@ def api_tariff_lookup():
             'punitive_tariffs': punitive_tariffs
         }
 
-        # Build detailed prompt for AI to analyze Section 99 punitive tariffs
-        punitive_details = ""
-        if punitive_tariffs:
-            punitive_details = "\n\nSection 99 Punitive Tariffs Found:\n"
-            for tariff in punitive_tariffs:
-                punitive_details += f"- {tariff.get('taxName', 'Unknown')}: {tariff.get('rate', 0)*100:.2f}% (HS {tariff.get('hsCode', 'N/A')})\n"
-                punitive_details += f"  Description: {tariff.get('description', 'N/A')}\n"
+        # ONLY call AI on final calculation (when Section 232 parameters provided)
+        # This saves API costs by avoiding AI calls on initial detection queries
+        ai_analysis = None
+        if section_232_auto or metal_composition:
+            # This is a final calculation with Section 232 parameters
+            # Build detailed prompt for AI to analyze Section 99 punitive tariffs
+            punitive_details = ""
+            if punitive_tariffs:
+                punitive_details = "\n\nSection 99 Punitive Tariffs Found:\n"
+                for tariff in punitive_tariffs:
+                    punitive_details += f"- {tariff.get('taxName', 'Unknown')}: {tariff.get('rate', 0)*100:.2f}% (HS {tariff.get('hsCode', 'N/A')})\n"
+                    punitive_details += f"  Description: {tariff.get('description', 'N/A')}\n"
 
-        issue_description = f"""Analyze this tariff calculation and provide detailed guidance on Section 99 punitive tariff exemptions and options.
+            issue_description = f"""Analyze this tariff calculation and provide detailed guidance on Section 99 punitive tariff exemptions and options.
 
 Transaction Details:
 - HS Code: {hs_code}
@@ -819,15 +824,18 @@ For EACH Section 99 punitive tariff found above (Section 232, Section 301, IEEPA
 
 Format your response with clear sections for each punitive tariff. Be specific and actionable."""
 
-        ai_analysis = get_ai_analysis(
-            user_request={'hs_code': hs_code, 'origin': origin_country, 'destination': destination_country, 'value': shipment_value},
-            api_response=api_response,
-            user_response=None,
-            issue_description=issue_description,
-            comparison=None,
-            chat_history=[],
-            transaction_context=transaction_context
-        )
+            ai_analysis = get_ai_analysis(
+                user_request={'hs_code': hs_code, 'origin': origin_country, 'destination': destination_country, 'value': shipment_value},
+                api_response=api_response,
+                user_response=None,
+                issue_description=issue_description,
+                comparison=None,
+                chat_history=[],
+                transaction_context=transaction_context
+            )
+        else:
+            # Initial detection call - skip AI to save costs
+            logger.info("Skipping AI analysis on initial detection call to save costs")
 
         # Remove duplicates from section_232_automotive_options
         unique_automotive_options = []
