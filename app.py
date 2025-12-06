@@ -270,6 +270,25 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         # Build item parameters based on Section 232 inputs
         item_parameters = []
 
+        # CRITICAL FIX: For initial detection (no Section 232 params provided),
+        # the API auto-applies default 232_metal_percent=1.0 which filters duties to only steel.
+        # Solution: Explicitly send all possible metals with 1% each to force API to show ALL applicable duties.
+        if not section_232_auto and not metal_composition:
+            logger.info("Initial detection: sending 1% for all metals to get complete duty list")
+            for metal in ['steel', 'aluminum', 'copper', 'lumber']:
+                item_parameters.extend([
+                    {
+                        "name": "232_metal_percent",
+                        "value": "0.01",  # 1% for each metal
+                        "unit": metal
+                    },
+                    {
+                        "name": "metal_coo",
+                        "value": origin_country,
+                        "unit": metal
+                    }
+                ])
+
         # Add automotive parameters if provided
         if section_232_auto:
             item_parameters.extend([
@@ -364,6 +383,10 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                     "name": "shipping",
                     "value": "50.0",
                     "unit": "USD"
+                },
+                {
+                    "name": "AUTOMATIC_HS_FALLBACK",
+                    "value": "true"
                 }
             ],
             "taxRegistered": False
