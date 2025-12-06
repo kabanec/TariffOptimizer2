@@ -270,6 +270,20 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         # Build item parameters based on Section 232 inputs
         item_parameters = []
 
+        # For initial detection (no Section 232 params provided), we need to prevent the API
+        # from auto-applying default Section 232 parameters which would filter the duty list.
+        # We'll add a dummy parameter to force the API to return ALL Section 232 duties.
+        if not section_232_auto and not metal_composition:
+            # Add parameters for all possible Section 232 metals to force API to show them all
+            for metal_type in ['steel', 'aluminum', 'copper', 'lumber']:
+                item_parameters.extend([
+                    {
+                        "name": "232_metal_percent",
+                        "value": "0.0",  # 0% means "check if applicable but don't apply"
+                        "unit": metal_type
+                    }
+                ])
+
         # Add automotive parameters if provided
         if section_232_auto:
             item_parameters.extend([
