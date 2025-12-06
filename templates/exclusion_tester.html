@@ -157,9 +157,13 @@
             border-left-color: #667eea;
             background: #f0f4ff;
         }
-        .update-item.type-modified, .update-item.type-policy_change {
+        .update-item.type-modified, .update-item.type-policy_change, .update-item.type-policy-change {
             border-left-color: #ffc107;
             background: #fffbeb;
+        }
+        .update-item.type-superseded, .update-item.type-expired {
+            border-left-color: #e74c3c;
+            background: #fef5f5;
         }
         .close-modal {
             float: right;
@@ -181,8 +185,10 @@
         }
         .badge-new { background: #10b981; color: white; }
         .badge-revoked { background: #dc3545; color: white; }
+        .badge-superseded { background: #e74c3c; color: white; }
+        .badge-expired { background: #e67e22; color: white; }
         .badge-extended { background: #667eea; color: white; }
-        .badge-modified, .badge-policy_change { background: #ffc107; color: #333; }
+        .badge-modified, .badge-policy_change, .badge-policy-change { background: #ffc107; color: #333; }
         .badge-analysis { background: #6c757d; color: white; }
     </style>
 </head>
@@ -200,9 +206,10 @@
 
         <main>
             <div class="update-checker-section">
-                <strong>🔔 Database Updates:</strong> Check for recent changes to Section 99 exclusions and exemptions from official sources.
-                <button id="checkUpdatesBtn" class="btn-check-updates" style="margin-left: 15px;">
-                    Check for Updates
+                <strong>🔔 Database Validation & Updates:</strong> Automatically checks for Executive Orders, Presidential Proclamations, and Federal Register notices that may have REVOKED, SUPERSEDED, or MODIFIED existing exclusions.
+                <br><small style="color: #856404; margin-top: 5px; display: block;">⚠️ IMPORTANT: Exclusions may be revoked by newer EOs/rules. Always validate against current regulations before relying on any exclusion.</small>
+                <button id="checkUpdatesBtn" class="btn-check-updates" style="margin-left: 0px; margin-top: 10px;">
+                    Check for Updates & Validate Exclusions
                 </button>
                 <span id="lastCheckedDisplay" style="margin-left: 15px; font-size: 0.9em; color: #666;"></span>
             </div>

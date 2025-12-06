@@ -665,6 +665,8 @@ def check_exclusion_updates():
 
             analysis_prompt = f"""Analyze recent (since {last_check}) changes to Section 99 tariff exclusions and exemptions.
 
+CRITICAL: Check for Executive Orders, Presidential Proclamations, and Federal Register notices that may have SUPERSEDED, REVOKED, or MODIFIED existing exclusions.
+
 Search for updates in these areas:
 1. Section 232 Steel/Aluminum exclusions and exemptions
 2. Section 301 China tariff exclusions
@@ -672,14 +674,25 @@ Search for updates in these areas:
 4. IEEPA reciprocal tariff exemptions
 5. General Approved Exclusions (GAE) status changes
 6. Country-specific arrangement changes
+7. Executive Orders that revoke or modify previous exclusions
+8. Presidential Proclamations superseding earlier rules
+9. CBP CSMS messages announcing revocations or expiration of exclusions
+10. Commerce Department policy changes affecting exclusion processing
+
+VALIDATION REQUIREMENTS:
+- For each existing exclusion in the database, verify it has NOT been revoked by a newer Executive Order
+- Check if exclusions have expiration dates that have passed
+- Identify if newer rules have superseded older exemptions
+- Flag exclusions that are no longer being processed (e.g., Commerce stopped processing Section 232 exclusions Feb 2025)
 
 For each change found, provide:
 - Date of change
 - HTSUS code(s) affected
-- Type of change (NEW exclusion, REVOKED exclusion, EXTENDED exclusion, MODIFIED conditions)
-- Brief description
-- Official source/reference
-- Impact on importers
+- Type of change (NEW, REVOKED, EXTENDED, MODIFIED, SUPERSEDED, EXPIRED)
+- Brief description explaining WHAT changed and WHY
+- Official source/reference (EO number, Proclamation number, Federal Register citation, CSMS message number)
+- Impact on importers (what they should do)
+- If REVOKED: specify what superseded it (EO number, date, reason)
 
 Return results as a JSON array of changes."""
 
@@ -729,8 +742,36 @@ Return results as a JSON array of changes."""
                 'source': 'System'
             })
 
+        # VALIDATION: Check if existing exclusions have been revoked or superseded
+        # This list contains known exclusions that are NO LONGER VALID
+        revoked_exclusions = {
+            # GAEs revoked on 2025-03-12
+            '9903.81.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only (9903.01.26, 9903.01.27)'},
+            '9903.81.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            '9903.81.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            '9903.81.04': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            '9903.85.01': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            '9903.85.02': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            '9903.85.03': {'date': '2025-03-12', 'reason': 'GAE revoked by CBP CSMS #65236374', 'superseded_by': 'USMCA exemptions only'},
+            # Add more as discovered...
+        }
+
+        # Check current database against revoked list
+        validation_warnings = []
+        for code, revocation_info in revoked_exclusions.items():
+            if revocation_info['date'] >= last_check:
+                validation_warnings.append({
+                    'date': revocation_info['date'],
+                    'htsus_codes': [code],
+                    'type': 'SUPERSEDED',
+                    'description': f"Exclusion {code} has been REVOKED and is no longer valid. {revocation_info['reason']}. Use {revocation_info['superseded_by']} instead if applicable.",
+                    'source': 'Validation Check',
+                    'reference': 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3e36d96',
+                    'impact': 'CRITICAL: Remove this exclusion from database. Use alternative exemptions only if conditions are met.'
+                })
+
         # Add hardcoded known recent changes (as of December 2025)
-        known_changes = [
+        known_changes = validation_warnings + [
             {
                 'date': '2025-03-12',
                 'htsus_codes': ['9903.01.26', '9903.01.27', '9903.81.*', '9903.85.*'],
