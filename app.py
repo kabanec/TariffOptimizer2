@@ -643,6 +643,299 @@ def test_validator():
     return render_template('test_validator.html', username=session.get('username'))
 
 
+@app.route('/stacking-builder')
+@login_required
+def stacking_builder():
+    """Stacking logic builder with dynamic questionnaire"""
+    return render_template('stacking_builder.html', username=session.get('username'))
+
+
+# ========== STACKING BUILDER API ENDPOINTS ==========
+
+@app.route('/api/find-applicable-tariffs', methods=['POST'])
+@login_required
+def find_applicable_tariffs():
+    """Find applicable Chapter 98/99 tariffs based on base HS code and origin"""
+    try:
+        data = request.json
+        hs_code = data.get('hsCode', '')
+        origin = data.get('origin', '')
+        value = float(data.get('value', 0))
+
+        logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}")
+
+        # Determine applicable tariffs based on HS code and origin
+        tariffs = []
+
+        # Section 232 Steel (HS codes starting with 72)
+        if hs_code.startswith('72'):
+            tariffs.append({
+                'code': '9903.81.87',
+                'name': 'Section 232 Steel Tariff',
+                'rate': 0.25,
+                'amount': value * 0.25,
+                'category': 'section_232_steel'
+            })
+
+        # Section 232 Aluminum (HS codes starting with 76)
+        if hs_code.startswith('76'):
+            tariffs.append({
+                'code': '9903.85.02',
+                'name': 'Section 232 Aluminum Tariff',
+                'rate': 0.10,
+                'amount': value * 0.10,
+                'category': 'section_232_aluminum'
+            })
+
+        # Section 232 Automotive (HS 8703 = passenger vehicles, 8704 = trucks)
+        if hs_code.startswith('8703') or hs_code.startswith('8704') or hs_code.startswith('8708'):
+            tariffs.append({
+                'code': '9903.01.15',
+                'name': 'Section 232 Automotive Tariff',
+                'rate': 0.25,
+                'amount': value * 0.25,
+                'category': 'section_232_automotive'
+            })
+
+        # Section 301 China (if origin is China)
+        if origin in ['CN', 'HK', 'MO']:
+            # Determine Section 301 list based on HS code (simplified)
+            tariffs.append({
+                'code': '9903.88.03',
+                'name': 'Section 301 List 3 - China',
+                'rate': 0.25,
+                'amount': value * 0.25,
+                'category': 'section_301'
+            })
+
+        # IEEPA Reciprocal Tariff (if origin is China/HK/Macau)
+        if origin in ['CN', 'HK', 'MO']:
+            tariffs.append({
+                'code': '9903.01.25',
+                'name': 'IEEPA Reciprocal Tariff - China',
+                'rate': 0.10,
+                'amount': value * 0.10,
+                'category': 'ieepa_reciprocal'
+            })
+            tariffs.append({
+                'code': '9903.01.22',
+                'name': 'IEEPA Fentanyl Tariff - China',
+                'rate': 0.20,
+                'amount': value * 0.20,
+                'category': 'ieepa_fentanyl'
+            })
+
+        return jsonify({
+            'success': True,
+            'tariffs': tariffs,
+            'hsCode': hs_code,
+            'origin': origin
+        })
+
+    except Exception as e:
+        logger.error(f"Error finding applicable tariffs: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/generate-stacking-questions', methods=['POST'])
+@login_required
+def generate_stacking_questions():
+    """Generate dynamic questions based on found tariffs using GPT-4"""
+    try:
+        data = request.json
+        product_info = data.get('productInfo', {})
+        found_tariffs = data.get('foundTariffs', [])
+
+        logger.info(f"Generating questions for {len(found_tariffs)} tariffs")
+
+        # Build prompt for GPT-4
+        tariff_summary = "\n".join([f"- {t['name']} ({t['code']}, {t['category']})" for t in found_tariffs])
+
+        prompt = f"""You are a customs tariff expert. Generate intelligent questions to determine which Section 99 exclusions apply for this product.
+
+Product Information:
+- Base HS Code: {product_info.get('hsCode')}
+- Country of Origin: {product_info.get('origin')}
+- Shipment Value: ${product_info.get('value')}
+
+Applicable Tariffs Found:
+{tariff_summary}
+
+Based on these tariffs, generate 3-5 targeted questions to determine eligibility for exclusions. Questions should:
+1. Be specific to the tariff categories present
+2. Help determine if USMCA, U.S. content, or other exemptions apply
+3. Follow CBP guidance for determining exclusion eligibility
+4. Be answerable with yes/no, multiple choice, or percentage values
+
+For each question, provide:
+- "question": The question text
+- "type": "boolean", "multiple_choice", or "percentage"
+- "options": Array of options (for multiple_choice only)
+- "category": The tariff category this question relates to (e.g., "section_232_steel")
+- "help": Brief explanation of why this matters
+- "exclusion_code": The Chapter 99 exclusion code this question determines (e.g., "9903.01.26" for USMCA Canada)
+
+Example questions:
+- For Section 232 Steel: "Does this steel qualify for USMCA treatment?" (boolean, helps determine 9903.01.26 or 9903.01.27)
+- For Section 232 Steel: "Was the steel melted and poured in the United States?" (boolean, helps determine 9903.81.92)
+- For Section 301: "Does this product match any of the 164 USTR product-specific exclusions?" (boolean, helps determine 9903.88.69)
+- For IEEPA: "What percentage of U.S. content does this product contain?" (percentage, helps determine 9903.01.34 if >20%)
+- For automotive products: "Is this product an automotive part, passenger vehicle, or heavy truck?" (multiple_choice)
+
+Return ONLY a JSON array of questions. No markdown, no explanations.
+
+[
+  {{
+    "question": "...",
+    "type": "boolean",
+    "category": "section_232_steel",
+    "help": "...",
+    "exclusion_code": "9903.01.26"
+  }},
+  ...
+]"""
+
+        client = get_openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a customs tariff expert specializing in CBP Chapter 99 exclusions and stacking logic."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
+
+        questions_json = response.choices[0].message.content.strip()
+        # Remove markdown code blocks if present
+        questions_json = questions_json.replace('```json', '').replace('```', '').strip()
+
+        questions = json.loads(questions_json)
+
+        logger.info(f"Generated {len(questions)} questions")
+
+        return jsonify({
+            'success': True,
+            'questions': questions
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating questions: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/analyze-stacking', methods=['POST'])
+@login_required
+def analyze_stacking():
+    """Analyze stacking order based on answers using GPT-4 and CBP guidance"""
+    try:
+        data = request.json
+        product_info = data.get('productInfo', {})
+        found_tariffs = data.get('foundTariffs', [])
+        questions = data.get('questions', [])
+        answers = data.get('answers', {})
+
+        logger.info(f"Analyzing stacking for {len(found_tariffs)} tariffs with {len(answers)} answers")
+
+        # Build Q&A summary
+        qa_summary = ""
+        for idx, answer in answers.items():
+            if int(idx) < len(questions):
+                q = questions[int(idx)]
+                qa_summary += f"Q: {q['question']}\nA: {answer}\n\n"
+
+        # Build prompt for GPT-4
+        tariff_summary = "\n".join([
+            f"- {t['name']} ({t['code']}) | Rate: {t['rate']*100}% | Amount: ${t['amount']:.2f} | Category: {t['category']}"
+            for t in found_tariffs
+        ])
+
+        prompt = f"""You are a CBP customs expert. Analyze the proper stacking order for Chapter 99 tariffs and determine which exclusions apply.
+
+Product Information:
+- Base HS Code: {product_info.get('hsCode')}
+- Country of Origin: {product_info.get('origin')}
+- Shipment Value: ${product_info.get('value')}
+
+Tariffs Identified:
+{tariff_summary}
+
+Questions & Answers:
+{qa_summary}
+
+CBP Stacking Guidance:
+1. Section 232 tariffs (Steel/Aluminum/Automotive) stack BEFORE Section 301
+2. IEEPA Reciprocal tariffs stack AFTER Section 232 and Section 301
+3. IEEPA Fentanyl tariffs stack last
+4. Section 232 exempts from IEEPA Reciprocal (9903.01.33)
+5. USMCA exemptions (9903.01.26, 9903.01.27) eliminate Section 232 duties
+6. U.S. content >20% (9903.01.34) eliminates IEEPA Reciprocal
+7. Informational materials (9903.01.21) are exempt from IEEPA
+
+Based on the answers, determine:
+1. Proper stacking order per CBP guidance
+2. Which tariffs are excluded due to exemptions
+3. Reasoning for each decision
+4. Total duties before and after exclusions
+
+Return ONLY a JSON object with this structure:
+
+{{
+  "stackingOrder": [
+    {{
+      "code": "9903.81.87",
+      "name": "Section 232 Steel Tariff",
+      "rate": 0.25,
+      "amount": 2500.00,
+      "excluded": false,
+      "reasoning": "Applies because product is steel from China and does not qualify for USMCA"
+    }},
+    {{
+      "code": "9903.01.25",
+      "name": "IEEPA Reciprocal Tariff",
+      "rate": 0.10,
+      "amount": 1000.00,
+      "excluded": true,
+      "reasoning": "Excluded due to Section 232 exemption (9903.01.33)"
+    }}
+  ],
+  "totalBefore": 7500.00,
+  "totalAfter": 2500.00,
+  "savings": 5000.00,
+  "cbpGuidance": "Per CBP guidance, Section 232 tariffs exempt products from IEEPA Reciprocal tariffs under exclusion code 9903.01.33."
+}}
+
+Return ONLY valid JSON. No markdown, no explanations."""
+
+        client = get_openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a CBP customs expert specializing in tariff stacking and Chapter 99 exclusions."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000
+        )
+
+        result_json = response.choices[0].message.content.strip()
+        # Remove markdown code blocks if present
+        result_json = result_json.replace('```json', '').replace('```', '').strip()
+
+        result = json.loads(result_json)
+
+        logger.info(f"Stacking analysis complete: ${result['totalBefore']:.2f} -> ${result['totalAfter']:.2f}")
+
+        return jsonify({
+            'success': True,
+            **result
+        })
+
+    except Exception as e:
+        logger.error(f"Error analyzing stacking: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ========== EXCLUSION UPDATE CHECKER HELPER FUNCTIONS ==========
 
 def discover_regulatory_changes(last_check):

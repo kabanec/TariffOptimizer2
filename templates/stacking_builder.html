@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stacking Logic Builder - Tariff Optimizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .step-container {
+            margin-bottom: 30px;
+        }
+        .step-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .step-card.active {
+            border-left-color: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        .step-card.completed {
+            border-left-color: #059bd2;
+            opacity: 0.8;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 15px;
+        }
+        .step-card.active .step-number {
+            background: #10b981;
+        }
+        .step-card.completed .step-number {
+            background: #059bd2;
+        }
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .question-help {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .answer-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .answer-option {
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .answer-option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .answer-option.selected {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        .answer-option input[type="radio"],
+        .answer-option input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .text-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        .btn-next {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .btn-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .tariff-found {
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .tariff-item {
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .stacking-result {
+            background: #e7f3ff;
+            border-left: 4px solid #059bd2;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .stacking-order {
+            counter-reset: stacking-counter;
+            list-style: none;
+            padding: 0;
+        }
+        .stacking-order li {
+            counter-increment: stacking-counter;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #10b981;
+            position: relative;
+            padding-left: 60px;
+        }
+        .stacking-order li::before {
+            content: counter(stacking-counter);
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .stacking-order li.excluded {
+            border-left-color: #dc3545;
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+        .stacking-order li.excluded::before {
+            background: #dc3545;
+        }
+        .reasoning-box {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Stacking Logic Builder</h1>
+            <p>Dynamic questionnaire to determine proper Section 98/99 tariff stacking</p>
+            <div style="text-align: right; margin-top: 10px;">
+                <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
+                <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+            </div>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Intelligent Stacking Analysis</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    This tool guides you through the proper stacking order for Chapter 98/99 tariffs based on CBP guidance.
+                    Answer questions about your product to determine which exclusions apply.
+                </p>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+
+                <div id="stepContainer" class="step-container">
+                    <!-- Step 1: Basic Product Info -->
+                    <div class="step-card active" id="step1">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <h3>Product Information</h3>
+                        </div>
+                        <div class="question-text">Enter your base HS code and country of origin</div>
+                        <div class="question-help">
+                            We'll use this to identify applicable Chapter 98/99 tariffs and generate relevant questions.
+                        </div>
+                        <div class="form-group">
+                            <label for="baseHsCode">Base HS Code (10-digit)</label>
+                            <input type="text" id="baseHsCode" class="text-input" placeholder="e.g., 7208.10.00.00" required>
+                        </div>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label for="originCountry">Country of Origin</label>
+                            <select id="originCountry" class="text-input">
+                                <option value="">-- Select Country --</option>
+                                <option value="CN">China (CN)</option>
+                                <option value="CA">Canada (CA)</option>
+                                <option value="MX">Mexico (MX)</option>
+                                <option value="HK">Hong Kong (HK)</option>
+                                <option value="MO">Macau (MO)</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label for="shipmentValue">Shipment Value (USD)</label>
+                            <input type="number" id="shipmentValue" class="text-input" placeholder="e.g., 10000" required>
+                        </div>
+                        <button class="btn-next" onclick="findApplicableTariffs()">
+                            Find Applicable Tariffs →
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Found Tariffs (dynamically populated) -->
+                    <div class="step-card" id="step2" style="display: none;">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <h3>Identified Tariffs</h3>
+                        </div>
+                        <div id="foundTariffsContent"></div>
+                    </div>
+
+                    <!-- Dynamic Question Steps (generated by AI) -->
+                    <div id="dynamicSteps"></div>
+
+                    <!-- Final Step: Stacking Results -->
+                    <div class="step-card" id="stepFinal" style="display: none;">
+                        <div class="step-header">
+                            <div class="step-number">✓</div>
+                            <h3>Stacking Analysis Complete</h3>
+                        </div>
+                        <div id="stackingResults"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Avalara Inc.</p>
+        </footer>
+    </div>
+
+    <script>
+        let productInfo = {};
+        let foundTariffs = [];
+        let questions = [];
+        let answers = {};
+        let currentStep = 1;
+        let totalSteps = 2;
+
+        async function findApplicableTariffs() {
+            const hsCode = document.getElementById('baseHsCode').value;
+            const origin = document.getElementById('originCountry').value;
+            const value = document.getElementById('shipmentValue').value;
+
+            if (!hsCode || !origin || !value) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            productInfo = { hsCode, origin, value: parseFloat(value) };
+
+            // Disable button and show loading
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Analyzing...';
+
+            try {
+                const response = await fetch('/api/find-applicable-tariffs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productInfo)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    foundTariffs = data.tariffs;
+                    displayFoundTariffs(data.tariffs);
+
+                    // Mark step 1 as completed
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step1').classList.add('completed');
+
+                    // Show step 2
+                    document.getElementById('step2').style.display = 'block';
+                    document.getElementById('step2').classList.add('active');
+
+                    updateProgress();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to find tariffs: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Find Applicable Tariffs →';
+            }
+        }
+
+        function displayFoundTariffs(tariffs) {
+            const content = document.getElementById('foundTariffsContent');
+
+            if (tariffs.length === 0) {
+                content.innerHTML = `
+                    <p style="color: #666;">No Chapter 98/99 tariffs found for this product and origin combination.</p>
+                    <div class="stacking-result">
+                        <h3>Result</h3>
+                        <p>Only standard Column 1 duties apply. No punitive tariffs or stacking required.</p>
+                    </div>
+                `;
+                document.getElementById('stepFinal').style.display = 'block';
+                return;
+            }
+
+            let html = '<div class="tariff-found">';
+            html += `<strong>Found ${tariffs.length} applicable tariff(s):</strong><br><br>`;
+
+            tariffs.forEach(tariff => {
+                html += `
+                    <div class="tariff-item">
+                        <strong>${tariff.name}</strong><br>
+                        <small>HS Code: ${tariff.code} | Rate: ${(tariff.rate * 100).toFixed(2)}% | Amount: $${tariff.amount.toFixed(2)}</small><br>
+                        <small style="color: #666;">Category: ${tariff.category}</small>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            html += '<button class="btn-next" onclick="generateQuestions()">Continue to Questions →</button>';
+
+            content.innerHTML = html;
+        }
+
+        async function generateQuestions() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Generating Questions...';
+
+            try {
+                const response = await fetch('/api/generate-stacking-questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        productInfo,
+                        foundTariffs
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    questions = data.questions;
+                    totalSteps = 2 + questions.length + 1; // Basic info + found tariffs + questions + final
+
+                    // Mark step 2 as completed
+                    document.getElementById('step2').classList.remove('active');
+                    document.getElementById('step2').classList.add('completed');
+
+                    displayDynamicQuestions();
+                    updateProgress();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to generate questions: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Continue to Questions →';
+            }
+        }
+
+        function displayDynamicQuestions() {
+            const container = document.getElementById('dynamicSteps');
+            container.innerHTML = '';
+
+            questions.forEach((question, index) => {
+                const stepNum = 3 + index;
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step-card';
+                stepDiv.id = `step${stepNum}`;
+                if (index === 0) {
+                    stepDiv.classList.add('active');
+                    stepDiv.style.display = 'block';
+                } else {
+                    stepDiv.style.display = 'none';
+                }
+
+                let optionsHTML = '';
+                if (question.type === 'boolean') {
+                    optionsHTML = `
+                        <div class="answer-options">
+                            <label class="answer-option">
+                                <input type="radio" name="q${index}" value="yes" onchange="selectAnswer(${index}, 'yes')">
+                                Yes
+                            </label>
+                            <label class="answer-option">
+                                <input type="radio" name="q${index}" value="no" onchange="selectAnswer(${index}, 'no')">
+                                No
+                            </label>
+                        </div>
+                    `;
+                } else if (question.type === 'multiple_choice') {
+                    optionsHTML = '<div class="answer-options">';
+                    question.options.forEach(option => {
+                        optionsHTML += `
+                            <label class="answer-option">
+                                <input type="radio" name="q${index}" value="${option}" onchange="selectAnswer(${index}, '${option}')">
+                                ${option}
+                            </label>
+                        `;
+                    });
+                    optionsHTML += '</div>';
+                } else if (question.type === 'percentage') {
+                    optionsHTML = `
+                        <input type="number" class="text-input" id="q${index}" min="0" max="100"
+                               placeholder="Enter percentage (0-100)"
+                               onchange="selectAnswer(${index}, this.value)">
+                    `;
+                }
+
+                stepDiv.innerHTML = `
+                    <div class="step-header">
+                        <div class="step-number">${stepNum}</div>
+                        <h3>${question.category || 'Product Details'}</h3>
+                    </div>
+                    <div class="question-text">${question.question}</div>
+                    ${question.help ? `<div class="question-help">${question.help}</div>` : ''}
+                    ${optionsHTML}
+                    <button class="btn-next" id="nextBtn${index}" onclick="nextQuestion(${index})" disabled>
+                        Next →
+                    </button>
+                `;
+
+                container.appendChild(stepDiv);
+            });
+        }
+
+        function selectAnswer(questionIndex, answer) {
+            answers[questionIndex] = answer;
+
+            // Enable next button
+            const nextBtn = document.getElementById(`nextBtn${questionIndex}`);
+            if (nextBtn) {
+                nextBtn.disabled = false;
+            }
+
+            // Highlight selected option
+            const stepDiv = document.getElementById(`step${3 + questionIndex}`);
+            const options = stepDiv.querySelectorAll('.answer-option');
+            options.forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.querySelector('input')?.value === answer) {
+                    opt.classList.add('selected');
+                }
+            });
+        }
+
+        function nextQuestion(questionIndex) {
+            const currentStepNum = 3 + questionIndex;
+            const nextStepNum = currentStepNum + 1;
+
+            // Mark current as completed
+            const currentStep = document.getElementById(`step${currentStepNum}`);
+            currentStep.classList.remove('active');
+            currentStep.classList.add('completed');
+
+            // Show next step or final results
+            if (questionIndex < questions.length - 1) {
+                const nextStep = document.getElementById(`step${nextStepNum}`);
+                nextStep.style.display = 'block';
+                nextStep.classList.add('active');
+            } else {
+                // All questions answered, analyze stacking
+                analyzeStacking();
+            }
+
+            updateProgress();
+        }
+
+        async function analyzeStacking() {
+            try {
+                const response = await fetch('/api/analyze-stacking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        productInfo,
+                        foundTariffs,
+                        questions,
+                        answers
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayStackingResults(data);
+                    document.getElementById('stepFinal').style.display = 'block';
+                    document.getElementById('stepFinal').classList.add('active');
+                    updateProgress();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to analyze stacking: ' + error.message);
+            }
+        }
+
+        function displayStackingResults(data) {
+            const container = document.getElementById('stackingResults');
+
+            let html = '<div class="stacking-result">';
+            html += '<h3>Final Stacking Order</h3>';
+            html += '<p style="color: #666; margin-bottom: 15px;">Based on CBP guidance and your answers:</p>';
+
+            html += '<ol class="stacking-order">';
+            data.stackingOrder.forEach(item => {
+                const excludedClass = item.excluded ? ' excluded' : '';
+                html += `
+                    <li class="${excludedClass}">
+                        <strong>${item.name}</strong> (${item.code})<br>
+                        <small>Rate: ${(item.rate * 100).toFixed(2)}% | Amount: $${item.amount.toFixed(2)}</small>
+                        ${item.reasoning ? `<div class="reasoning-box">💡 ${item.reasoning}</div>` : ''}
+                    </li>
+                `;
+            });
+            html += '</ol>';
+
+            html += `
+                <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 6px;">
+                    <strong>Total Duties Before Exclusions:</strong> $${data.totalBefore.toFixed(2)}<br>
+                    <strong style="color: #10b981;">Total Duties After Exclusions:</strong> $${data.totalAfter.toFixed(2)}<br>
+                    <strong style="color: #667eea;">Savings:</strong> $${data.savings.toFixed(2)}
+                </div>
+            `;
+
+            if (data.cbpGuidance) {
+                html += `
+                    <div style="margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 6px;">
+                        <strong>📘 CBP Stacking Guidance:</strong><br>
+                        <small>${data.cbpGuidance}</small>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        function updateProgress() {
+            const completedSteps = document.querySelectorAll('.step-card.completed').length;
+            const progress = (completedSteps / totalSteps) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+    </script>
+</body>
+</html>
