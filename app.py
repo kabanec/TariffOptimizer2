@@ -655,75 +655,100 @@ def stacking_builder():
 @app.route('/api/find-applicable-tariffs', methods=['POST'])
 @login_required
 def find_applicable_tariffs():
-    """Find applicable Chapter 98/99 tariffs based on base HS code and origin"""
+    """Find applicable Chapter 98/99 tariffs based on base HS code and origin using AvaTax API"""
     try:
         data = request.json
         hs_code = data.get('hsCode', '')
         origin = data.get('origin', '')
         value = float(data.get('value', 0))
 
-        logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}")
+        logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}, value ${value}")
 
-        # Determine applicable tariffs based on HS code and origin
+        # Call AvaTax Quotes API to get actual tariffs
+        quotes_request = {
+            "companyId": AVALARA_COMPANY_ID,
+            "transactionType": "import",
+            "calculation": "dutyAndTax",
+            "lines": [
+                {
+                    "lineNumber": "1",
+                    "hsCode": hs_code,
+                    "countryOfOrigin": origin,
+                    "destinationCountry": "US",
+                    "actualValueAmount": value,
+                    "quantityValue": 1,
+                    "quantityUnit": "EA"
+                }
+            ]
+        }
+
+        api_response = call_avatax_api(
+            endpoint='/quotes',
+            method='POST',
+            payload=quotes_request
+        )
+
+        if api_response.get('status_code') != 200:
+            logger.error(f"AvaTax API error: {api_response}")
+            return jsonify({
+                'success': False,
+                'error': f"AvaTax API returned status {api_response.get('status_code')}"
+            }), api_response.get('status_code', 500)
+
+        # Parse duty granularity to find Chapter 98/99 tariffs
         tariffs = []
+        lines = api_response.get('lines', [])
 
-        # Section 232 Steel (HS codes starting with 72)
-        if hs_code.startswith('72'):
-            tariffs.append({
-                'code': '9903.81.87',
-                'name': 'Section 232 Steel Tariff',
-                'rate': 0.25,
-                'amount': value * 0.25,
-                'category': 'section_232_steel'
-            })
+        if lines:
+            line = lines[0]
+            calculation_summary = line.get('calculationSummary', {})
+            duty_granularity = calculation_summary.get('dutyGranularity', [])
 
-        # Section 232 Aluminum (HS codes starting with 76)
-        if hs_code.startswith('76'):
-            tariffs.append({
-                'code': '9903.85.02',
-                'name': 'Section 232 Aluminum Tariff',
-                'rate': 0.10,
-                'amount': value * 0.10,
-                'category': 'section_232_aluminum'
-            })
+            logger.info(f"Found {len(duty_granularity)} duty items")
 
-        # Section 232 Automotive (HS 8703 = passenger vehicles, 8704 = trucks)
-        if hs_code.startswith('8703') or hs_code.startswith('8704') or hs_code.startswith('8708'):
-            tariffs.append({
-                'code': '9903.01.15',
-                'name': 'Section 232 Automotive Tariff',
-                'rate': 0.25,
-                'amount': value * 0.25,
-                'category': 'section_232_automotive'
-            })
+            for duty_item in duty_granularity:
+                duty_type = duty_item.get('type', 'STANDARD')
+                hs_code_item = duty_item.get('hsCode', '')
+                rate_label = duty_item.get('rateLabel', '')
+                description = duty_item.get('description', '')
+                effective_rate = float(duty_item.get('effectiveRate', 0))
 
-        # Section 301 China (if origin is China)
-        if origin in ['CN', 'HK', 'MO']:
-            # Determine Section 301 list based on HS code (simplified)
-            tariffs.append({
-                'code': '9903.88.03',
-                'name': 'Section 301 List 3 - China',
-                'rate': 0.25,
-                'amount': value * 0.25,
-                'category': 'section_301'
-            })
+                # Only include Chapter 98/99 punitive tariffs
+                if duty_type == 'PUNITIVE' or hs_code_item.startswith(('9903', '9902', '98', '99')):
+                    # Determine category based on HS code and description
+                    category = 'unknown'
 
-        # IEEPA Reciprocal Tariff (if origin is China/HK/Macau)
-        if origin in ['CN', 'HK', 'MO']:
-            tariffs.append({
-                'code': '9903.01.25',
-                'name': 'IEEPA Reciprocal Tariff - China',
-                'rate': 0.10,
-                'amount': value * 0.10,
-                'category': 'ieepa_reciprocal'
-            })
-            tariffs.append({
-                'code': '9903.01.22',
-                'name': 'IEEPA Fentanyl Tariff - China',
-                'rate': 0.20,
-                'amount': value * 0.20,
-                'category': 'ieepa_fentanyl'
-            })
+                    # Section 232 Steel
+                    if hs_code_item.startswith('99038') and 'steel' in description.lower():
+                        category = 'section_232_steel'
+                    # Section 232 Aluminum
+                    elif hs_code_item.startswith('99038') and 'aluminum' in description.lower():
+                        category = 'section_232_aluminum'
+                    # Section 232 Automotive
+                    elif hs_code_item.startswith('99030') and ('auto' in description.lower() or 'vehicle' in description.lower()):
+                        category = 'section_232_automotive'
+                    # Section 301
+                    elif hs_code_item.startswith('99038') and '301' in description.lower():
+                        category = 'section_301'
+                    # IEEPA Reciprocal
+                    elif hs_code_item.startswith('99030') and 'reciprocal' in description.lower():
+                        category = 'ieepa_reciprocal'
+                    # IEEPA Fentanyl
+                    elif hs_code_item.startswith('99030') and 'fentanyl' in description.lower():
+                        category = 'ieepa_fentanyl'
+
+                    tariffs.append({
+                        'code': hs_code_item,
+                        'name': rate_label or description,
+                        'rate': effective_rate,
+                        'amount': value * effective_rate,
+                        'category': category,
+                        'description': description
+                    })
+
+                    logger.info(f"Found punitive tariff: {hs_code_item} - {rate_label} ({category})")
+
+        logger.info(f"Total punitive tariffs found: {len(tariffs)}")
 
         return jsonify({
             'success': True,
