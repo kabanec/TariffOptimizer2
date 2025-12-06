@@ -46,12 +46,21 @@ def get_openai_client():
     """Get or create OpenAI client instance"""
     global _openai_client
     if _openai_client is None:
-        # Initialize OpenAI client with explicit parameters only
-        # Do not pass proxies parameter - it causes errors in openai>=1.0
-        _openai_client = OpenAI(
-            api_key=OPENAI_API_KEY,
-            timeout=30.0
-        )
+        try:
+            # Initialize OpenAI client - only pass supported parameters
+            _openai_client = OpenAI(
+                api_key=OPENAI_API_KEY,
+                timeout=30.0,
+                max_retries=2
+            )
+        except TypeError as e:
+            # If there's a parameter error, try with minimal parameters
+            logger.warning(f"OpenAI client initialization failed with full params: {e}")
+            try:
+                _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+            except Exception as e2:
+                logger.error(f"OpenAI client initialization failed completely: {e2}")
+                raise
     return _openai_client
 
 # AvaTax endpoints - Quotes API for duty calculations
