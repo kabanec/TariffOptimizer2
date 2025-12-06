@@ -348,11 +348,6 @@
 
             <!-- Results Section -->
             <div id="resultsSection" style="display: none;">
-                <!-- Result Hero Card -->
-                <div class="result-hero" id="resultHero">
-                    <!-- Populated by JavaScript -->
-                </div>
-
                 <!-- Punitive Tariffs Warning (if applicable) -->
                 <div id="punitiveWarning" style="display: none;">
                     <!-- Populated by JavaScript -->
@@ -712,36 +707,6 @@
 
         function displayResults(data, shipmentValue) {
             const { apiResponse, aiAnalysis, dutyBreakdown, punitiveTariffs } = data;
-
-            // Calculate totals
-            const totalDuties = apiResponse.totalTax || 0;
-            const totalLandedCost = apiResponse.totalAmount || (shipmentValue + totalDuties);
-            const effectiveRate = shipmentValue > 0 ? (totalDuties / shipmentValue) * 100 : 0;
-
-            // Display Result Hero
-            const resultHero = document.getElementById('resultHero');
-            resultHero.innerHTML = `
-                <div class="main-value">$${totalDuties.toFixed(2)}</div>
-                <div class="sub-value">Total Estimated Duties & Taxes</div>
-                <div class="info-grid">
-                    <div class="info-box">
-                        <div class="label">Shipment Value</div>
-                        <div class="value">$${shipmentValue.toFixed(2)}</div>
-                    </div>
-                    <div class="info-box">
-                        <div class="label">Effective Rate</div>
-                        <div class="value">${effectiveRate.toFixed(2)}%</div>
-                    </div>
-                    <div class="info-box">
-                        <div class="label">Total Landed Cost</div>
-                        <div class="value">$${totalLandedCost.toFixed(2)}</div>
-                    </div>
-                    <div class="info-box">
-                        <div class="label">Entry Date</div>
-                        <div class="value">${document.getElementById('entryDate').value}</div>
-                    </div>
-                </div>
-            `;
 
             // Display Punitive Warning
             const punitiveWarning = document.getElementById('punitiveWarning');
