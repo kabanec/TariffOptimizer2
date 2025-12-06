@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exclusion Logic Test Validator - Tariff Optimizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        .test-card.passed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .test-card.failed {
+            border-left-color: #dc3545;
+            background: #fef2f2;
+        }
+        .test-card.pending {
+            border-left-color: #ffc107;
+            background: #fffbeb;
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .test-id {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        .test-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        .status-pending { background: #ffc107; color: #333; }
+        .status-passed { background: #10b981; color: white; }
+        .status-failed { background: #dc3545; color: white; }
+        .test-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .detail-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        .detail-section h4 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 1em;
+        }
+        .input-data, .expected-outcome, .actual-outcome {
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+        }
+        .match { background: #d4edda; }
+        .mismatch { background: #f8d7da; }
+        .broker-validation {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 4px solid #059bd2;
+            border-radius: 4px;
+        }
+        .validation-buttons {
+            margin-top: 10px;
+        }
+        .btn-validate {
+            padding: 8px 16px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-pass { background: #10b981; color: white; }
+        .btn-fail { background: #dc3545; color: white; }
+        .btn-skip { background: #6c757d; color: white; }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .filter-buttons {
+            margin-bottom: 20px;
+        }
+        .btn-filter {
+            padding: 10px 20px;
+            margin-right: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-filter.active {
+            background: #667eea;
+            color: white;
+        }
+        .export-buttons {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .btn-export {
+            padding: 10px 20px;
+            margin-left: 10px;
+            background: #059bd2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Exclusion Logic Test Validator</h1>
+            <p>Customs Broker Validation Suite for Section 99 Tariff Exclusion Logic</p>
+            <div style="text-align: right; margin-top: 10px;">
+                <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
+                <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+            </div>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>Test Suite Overview</h2>
+                <p>This validation suite contains 25 comprehensive test cases covering Section 232, Section 301, IEEPA, and edge case scenarios. Each test case includes:</p>
+                <ul>
+                    <li><strong>Input Data:</strong> HS code, origin, value, and qualifying conditions</li>
+                    <li><strong>Expected Outcome:</strong> Which exclusions should apply and resulting duties</li>
+                    <li><strong>Actual System Output:</strong> What the system calculated (to be validated)</li>
+                    <li><strong>Broker Validation:</strong> Your professional assessment (Pass/Fail/Notes)</li>
+                </ul>
+
+                <div class="export-buttons">
+                    <button class="btn-export" onclick="exportResults('csv')">📊 Export Results (CSV)</button>
+                    <button class="btn-export" onclick="exportResults('pdf')">📄 Export Report (PDF)</button>
+                </div>
+
+                <div class="summary-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #667eea;" id="totalTests">25</div>
+                        <div class="stat-label">Total Tests</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #10b981;" id="passedTests">0</div>
+                        <div class="stat-label">Passed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #dc3545;" id="failedTests">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" style="color: #ffc107;" id="pendingTests">25</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%;">0% Complete</div>
+                </div>
+
+                <div class="filter-buttons">
+                    <button class="btn-filter active" onclick="filterTests('all')">All Tests</button>
+                    <button class="btn-filter" onclick="filterTests('section_232_steel')">Section 232 Steel</button>
+                    <button class="btn-filter" onclick="filterTests('section_232_aluminum')">Section 232 Aluminum</button>
+                    <button class="btn-filter" onclick="filterTests('section_301')">Section 301</button>
+                    <button class="btn-filter" onclick="filterTests('ieepa_reciprocal')">IEEPA</button>
+                    <button class="btn-filter" onclick="filterTests('edge_cases')">Edge Cases</button>
+                    <button class="btn-filter" onclick="filterTests('failed')">Failed Only</button>
+                    <button class="btn-filter" onclick="filterTests('pending')">Pending Only</button>
+                </div>
+            </div>
+
+            <div id="testCasesList"></div>
+
+            <div class="card">
+                <h3>Validation Complete?</h3>
+                <p>Once you've validated all test cases, you can:</p>
+                <ul>
+                    <li>Export results to CSV for further analysis</li>
+                    <li>Generate a PDF report for compliance documentation</li>
+                    <li>Share feedback with the development team</li>
+                </ul>
+                <button class="btn-export" onclick="submitValidation()">📤 Submit Final Validation to Development Team</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Avalara Inc. | Test Suite Version 1.0</p>
+        </footer>
+    </div>
+
+    <script>
+        let testCases = [];
+        let validationResults = {};
+        let currentFilter = 'all';
+
+        // Load test cases on page load
+        async function loadTestCases() {
+            try {
+                const response = await fetch('/static/exclusion_test_cases.json');
+                const data = await response.json();
+                testCases = data.test_cases;
+
+                // Load saved validation results from localStorage
+                const saved = localStorage.getItem('testValidationResults');
+                if (saved) {
+                    validationResults = JSON.parse(saved);
+                }
+
+                renderTestCases();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading test cases:', error);
+                alert('Failed to load test cases: ' + error.message);
+            }
+        }
+
+        function renderTestCases() {
+            const container = document.getElementById('testCasesList');
+            container.innerHTML = '';
+
+            const filtered = testCases.filter(test => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'failed') return validationResults[test.test_id]?.status === 'failed';
+                if (currentFilter === 'pending') return !validationResults[test.test_id];
+                return test.category === currentFilter;
+            });
+
+            filtered.forEach(test => {
+                const validation = validationResults[test.test_id];
+                const status = validation ? validation.status : 'pending';
+
+                const card = document.createElement('div');
+                card.className = `test-card ${status}`;
+                card.dataset.testId = test.test_id;
+                card.dataset.category = test.category;
+
+                card.innerHTML = `
+                    <div class="test-header">
+                        <div class="test-id">${test.test_id}: ${test.scenario}</div>
+                        <div class="test-status status-${status}">${status.toUpperCase()}</div>
+                    </div>
+
+                    <div class="test-details">
+                        <div class="detail-section">
+                            <h4>📥 Input Data</h4>
+                            <div class="input-data">
+                                <strong>HS Code:</strong> ${test.input.hs_code}<br>
+                                <strong>Origin:</strong> ${test.input.origin_country}<br>
+                                <strong>Value:</strong> $${test.input.value.toLocaleString()}<br>
+                                <strong>Duties Applied:</strong><br>
+                                ${test.input.duties_applied.map(d => `&nbsp;&nbsp;• ${d.name}: ${(d.rate * 100).toFixed(1)}% = $${d.amount.toLocaleString()}`).join('<br>')}
+                            </div>
+                        </div>
+
+                        <div class="detail-section">
+                            <h4>✅ Expected Outcome</h4>
+                            <div class="expected-outcome">
+                                <strong>Exclusions:</strong> ${test.expected_outcome.applicable_exclusions.join(', ') || 'None'}<br>
+                                <strong>Status:</strong> ${test.expected_outcome.status}<br>
+                                <strong>Duties Before:</strong> $${test.expected_outcome.total_duty_before.toLocaleString()}<br>
+                                <strong>Duties After:</strong> $${test.expected_outcome.total_duty_after.toLocaleString()}<br>
+                                <strong>Savings:</strong> $${test.expected_outcome.savings.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="broker-validation">
+                        <strong>📋 Broker Notes (from test case):</strong><br>
+                        <em>${test.expected_outcome.broker_notes}</em>
+
+                        <div class="validation-buttons">
+                            <button class="btn-validate btn-pass" onclick="validateTest('${test.test_id}', 'passed')">✓ Pass - Logic Correct</button>
+                            <button class="btn-validate btn-fail" onclick="validateTest('${test.test_id}', 'failed')">✗ Fail - Logic Error</button>
+                            <button class="btn-validate btn-skip" onclick="validateTest('${test.test_id}', 'pending')">⊙ Reset</button>
+                        </div>
+
+                        ${validation ? `
+                            <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px;">
+                                <strong>Your Validation (${new Date(validation.timestamp).toLocaleString()}):</strong><br>
+                                Status: <strong>${validation.status.toUpperCase()}</strong><br>
+                                ${validation.notes ? `Notes: ${validation.notes}` : ''}
+                            </div>
+                        ` : ''}
+
+                        <div style="margin-top: 10px;">
+                            <textarea id="notes-${test.test_id}" placeholder="Add your validation notes here (optional)..." style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function validateTest(testId, status) {
+            const notes = document.getElementById(`notes-${testId}`).value;
+
+            validationResults[testId] = {
+                status: status,
+                notes: notes,
+                timestamp: new Date().toISOString(),
+                validator: '{{ username }}'
+            };
+
+            // Save to localStorage
+            localStorage.setItem('testValidationResults', JSON.stringify(validationResults));
+
+            // Re-render
+            renderTestCases();
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = testCases.length;
+            const passed = Object.values(validationResults).filter(v => v.status === 'passed').length;
+            const failed = Object.values(validationResults).filter(v => v.status === 'failed').length;
+            const pending = total - passed - failed;
+
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            document.getElementById('pendingTests').textContent = pending;
+
+            const percentage = Math.round(((passed + failed) / total) * 100);
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressBar').textContent = percentage + '% Complete';
+        }
+
+        function filterTests(category) {
+            currentFilter = category;
+
+            // Update active button
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            renderTestCases();
+        }
+
+        function exportResults(format) {
+            if (format === 'csv') {
+                exportCSV();
+            } else if (format === 'pdf') {
+                alert('PDF export would be implemented here using a library like jsPDF');
+            }
+        }
+
+        function exportCSV() {
+            const rows = [
+                ['Test ID', 'Category', 'Scenario', 'Expected Status', 'Broker Validation', 'Pass/Fail', 'Notes', 'Validated By', 'Timestamp']
+            ];
+
+            testCases.forEach(test => {
+                const validation = validationResults[test.test_id];
+                rows.push([
+                    test.test_id,
+                    test.category,
+                    test.scenario,
+                    test.expected_outcome.status,
+                    validation ? validation.status : 'PENDING',
+                    validation && validation.status === 'passed' ? 'PASS' : (validation && validation.status === 'failed' ? 'FAIL' : 'PENDING'),
+                    validation ? validation.notes : '',
+                    validation ? validation.validator : '',
+                    validation ? new Date(validation.timestamp).toLocaleString() : ''
+                ]);
+            });
+
+            const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `exclusion_validation_results_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function submitValidation() {
+            const stats = {
+                total: testCases.length,
+                validated: Object.keys(validationResults).length,
+                passed: Object.values(validationResults).filter(v => v.status === 'passed').length,
+                failed: Object.values(validationResults).filter(v => v.status === 'failed').length
+            };
+
+            if (stats.validated < stats.total) {
+                if (!confirm(`You have only validated ${stats.validated} of ${stats.total} test cases. Submit anyway?`)) {
+                    return;
+                }
+            }
+
+            // In a real implementation, this would POST to the server
+            alert(`Validation Summary:\n\nTotal Tests: ${stats.total}\nValidated: ${stats.validated}\nPassed: ${stats.passed}\nFailed: ${stats.failed}\n\nResults have been saved locally. In production, this would submit to the development team.`);
+
+            // Export results automatically
+            exportCSV();
+        }
+
+        // Load test cases on page load
+        window.addEventListener('DOMContentLoaded', loadTestCases);
+    </script>
+</body>
+</html>

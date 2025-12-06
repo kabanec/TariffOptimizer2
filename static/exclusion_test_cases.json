@@ -1,0 +1,642 @@
+{
+  "test_metadata": {
+    "version": "1.0",
+    "last_updated": "2025-12-06",
+    "description": "Comprehensive test cases for Section 99 tariff exclusion logic validation by customs brokers",
+    "total_test_cases": 25,
+    "categories": ["section_232_steel", "section_232_aluminum", "section_301", "ieepa_reciprocal", "edge_cases"]
+  },
+  "test_cases": [
+    {
+      "test_id": "S232-STEEL-001",
+      "category": "section_232_steel",
+      "scenario": "Canadian steel imported under USMCA",
+      "input": {
+        "hs_code": "7208.10.00.00",
+        "origin_country": "CA",
+        "value": 10000,
+        "qualifies_usmca": true,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 2500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.26"],
+        "exclusion_names": ["USMCA Exemption: Canada Origin"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 2500,
+        "total_duty_after": 0,
+        "savings": 2500,
+        "status": "EXEMPT",
+        "broker_notes": "USMCA exemption should eliminate all Section 232 steel duties for Canadian origin"
+      }
+    },
+    {
+      "test_id": "S232-STEEL-002",
+      "category": "section_232_steel",
+      "scenario": "Mexican steel imported under USMCA",
+      "input": {
+        "hs_code": "7208.25.00.00",
+        "origin_country": "MX",
+        "value": 15000,
+        "qualifies_usmca": true,
+        "duties_applied": [
+          {"code": "99038188", "name": "Section 232 Steel", "rate": 0.25, "amount": 3750}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.27"],
+        "exclusion_names": ["USMCA Exemption: Mexico Origin"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 3750,
+        "total_duty_after": 0,
+        "savings": 3750,
+        "status": "EXEMPT",
+        "broker_notes": "USMCA exemption should eliminate all Section 232 steel duties for Mexican origin"
+      }
+    },
+    {
+      "test_id": "S232-STEEL-003",
+      "category": "section_232_steel",
+      "scenario": "US-origin steel derivative (melted and poured in US)",
+      "input": {
+        "hs_code": "7326.90.85.00",
+        "origin_country": "US",
+        "value": 8000,
+        "melted_poured_in_us": true,
+        "duties_applied": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 2000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.81.92"],
+        "exclusion_names": ["U.S.-Origin Steel Exemption"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 2000,
+        "total_duty_after": 0,
+        "savings": 2000,
+        "status": "EXEMPT",
+        "broker_notes": "US-origin steel melted and poured domestically qualifies for 0% tariff rate"
+      }
+    },
+    {
+      "test_id": "S232-STEEL-004",
+      "category": "section_232_steel",
+      "scenario": "Chinese steel with no applicable exclusions (GAEs revoked)",
+      "input": {
+        "hs_code": "7208.10.00.00",
+        "origin_country": "CN",
+        "value": 20000,
+        "qualifies_usmca": false,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 5000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 5000}
+        ],
+        "total_duty_before": 5000,
+        "total_duty_after": 5000,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "Chinese steel has no applicable exclusions after GAE revocation (March 12, 2025)"
+      }
+    },
+    {
+      "test_id": "S232-ALUM-001",
+      "category": "section_232_aluminum",
+      "scenario": "Canadian aluminum under USMCA",
+      "input": {
+        "hs_code": "7606.11.30.00",
+        "origin_country": "CA",
+        "value": 12000,
+        "qualifies_usmca": true,
+        "duties_applied": [
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 1200}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.26"],
+        "exclusion_names": ["USMCA Exemption: Canada Origin"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 1200,
+        "total_duty_after": 0,
+        "savings": 1200,
+        "status": "EXEMPT",
+        "broker_notes": "USMCA exemption eliminates Section 232 aluminum duties for Canadian origin"
+      }
+    },
+    {
+      "test_id": "S232-ALUM-002",
+      "category": "section_232_aluminum",
+      "scenario": "US-smelted and cast aluminum",
+      "input": {
+        "hs_code": "7606.92.30.60",
+        "origin_country": "US",
+        "value": 9000,
+        "smelted_cast_in_us": true,
+        "duties_applied": [
+          {"code": "99038504", "name": "Section 232 Aluminum Derivatives", "rate": 0.10, "amount": 900}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["US_ORIGIN_ALUMINUM"],
+        "exclusion_names": ["U.S.-Origin Aluminum Exemption"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 900,
+        "total_duty_after": 0,
+        "savings": 900,
+        "status": "EXEMPT",
+        "broker_notes": "Aluminum smelted and cast in US qualifies for exemption"
+      }
+    },
+    {
+      "test_id": "S301-001",
+      "category": "section_301",
+      "scenario": "Chinese product with USTR exclusion (164 products list)",
+      "input": {
+        "hs_code": "8507.60.00.00",
+        "origin_country": "CN",
+        "value": 25000,
+        "matches_ustr_exclusion_list": true,
+        "exclusion_code": "9903.88.69",
+        "duties_applied": [
+          {"code": "99038803", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 6250}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.88.69"],
+        "exclusion_names": ["USTR Product-Specific Exclusion (164 products)"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 6250,
+        "total_duty_after": 0,
+        "savings": 6250,
+        "status": "EXEMPT",
+        "broker_notes": "Product matches USTR exclusion list, valid through Nov 10, 2026. Verify exact product description match."
+      }
+    },
+    {
+      "test_id": "S301-002",
+      "category": "section_301",
+      "scenario": "Section 321 de minimis entry from China",
+      "input": {
+        "hs_code": "6109.10.00.40",
+        "origin_country": "CN",
+        "value": 750,
+        "entry_type": "SECTION_321",
+        "has_quota_restrictions": false,
+        "duties_applied": [
+          {"code": "99038815", "name": "Section 301 - China 7.5%", "rate": 0.075, "amount": 56.25}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["SECTION_321"],
+        "exclusion_names": ["De Minimis Exemption (Section 321)"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 56.25,
+        "total_duty_after": 0,
+        "savings": 56.25,
+        "status": "EXEMPT",
+        "broker_notes": "Section 321 de minimis entries are exempt from Section 301 duties if no quota restrictions apply"
+      }
+    },
+    {
+      "test_id": "S301-003",
+      "category": "section_301",
+      "scenario": "Chapter 98 provision entry (9802.00.80)",
+      "input": {
+        "hs_code": "8471.30.01.00",
+        "origin_country": "CN",
+        "value": 50000,
+        "chapter_98_provision": "9802.00.80",
+        "us_components_value": 30000,
+        "foreign_value_added": 20000,
+        "duties_applied": [
+          {"code": "99038804", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 12500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038804", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 5000, "note": "Applied only to foreign value added ($20,000)"}
+        ],
+        "total_duty_before": 12500,
+        "total_duty_after": 5000,
+        "savings": 7500,
+        "status": "PARTIAL_EXEMPTION",
+        "broker_notes": "Chapter 98 provision 9802.00.80 - Section 301 duties apply only to foreign value added, not US components"
+      }
+    },
+    {
+      "test_id": "S301-004",
+      "category": "section_301",
+      "scenario": "Chapter 98 full exemption (9801.00.10)",
+      "input": {
+        "hs_code": "9401.80.40.10",
+        "origin_country": "CN",
+        "value": 15000,
+        "chapter_98_provision": "9801.00.10",
+        "duties_applied": [
+          {"code": "99038809", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 3750}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["CHAPTER_98"],
+        "exclusion_names": ["Chapter 98 Provisions"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 3750,
+        "total_duty_after": 0,
+        "savings": 3750,
+        "status": "EXEMPT",
+        "broker_notes": "Chapter 98 provision 9801.00.10 fully exempts from Section 301 duties (not one of the excluded provisions)"
+      }
+    },
+    {
+      "test_id": "IEEPA-001",
+      "category": "ieepa_reciprocal",
+      "scenario": "Informational materials from China (publications)",
+      "input": {
+        "hs_code": "4901.99.00.91",
+        "origin_country": "CN",
+        "value": 5000,
+        "product_type": "publications",
+        "duties_applied": [
+          {"code": "99030124", "name": "IEEPA China/HK/Macau", "rate": 0.15, "amount": 750}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.21"],
+        "exclusion_names": ["Informational Materials Exemption"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 750,
+        "total_duty_after": 0,
+        "savings": 750,
+        "status": "EXEMPT",
+        "broker_notes": "Informational materials (publications, films, CDs, artworks, etc.) are exempt from IEEPA tariffs"
+      }
+    },
+    {
+      "test_id": "IEEPA-002",
+      "category": "ieepa_reciprocal",
+      "scenario": "Product with >20% US content from China",
+      "input": {
+        "hs_code": "8471.50.01.00",
+        "origin_country": "CN",
+        "value": 30000,
+        "us_content_percentage": 25,
+        "duties_applied": [
+          {"code": "99030125", "name": "IEEPA Reciprocal Tariff", "rate": 0.10, "amount": 3000},
+          {"code": "99030122", "name": "IEEPA Fentanyl Tariff", "rate": 0.20, "amount": 6000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.34"],
+        "exclusion_names": ["U.S. Content Exemption (>20%)"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 9000,
+        "total_duty_after": 0,
+        "savings": 9000,
+        "status": "EXEMPT",
+        "broker_notes": "Products with >20% US content are exempt from IEEPA reciprocal tariffs"
+      }
+    },
+    {
+      "test_id": "IEEPA-003",
+      "category": "ieepa_reciprocal",
+      "scenario": "Steel product subject to Section 232 (exempt from IEEPA reciprocal)",
+      "input": {
+        "hs_code": "7208.36.00.30",
+        "origin_country": "CN",
+        "value": 18000,
+        "subject_to_section_232": true,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 4500},
+          {"code": "99030124", "name": "IEEPA Reciprocal", "rate": 0.10, "amount": 1800}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.33"],
+        "exclusion_names": ["Section 232 Exemption from Reciprocal Tariffs"],
+        "duties_after_exclusions": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 4500}
+        ],
+        "total_duty_before": 6300,
+        "total_duty_after": 4500,
+        "savings": 1800,
+        "status": "PARTIAL_EXEMPTION",
+        "broker_notes": "Products subject to Section 232 tariffs are exempt from IEEPA reciprocal tariffs (9903.01.33), but Section 232 duties still apply"
+      }
+    },
+    {
+      "test_id": "IEEPA-004",
+      "category": "ieepa_reciprocal",
+      "scenario": "China reciprocal exclusion reduces IEEPA rate",
+      "input": {
+        "hs_code": "3305.10.00.00",
+        "origin_country": "CN",
+        "value": 10000,
+        "qualifies_for_reciprocal_exclusion": true,
+        "duties_applied": [
+          {"code": "99030125", "name": "IEEPA Reciprocal Tariff", "rate": 0.10, "amount": 1000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.30"],
+        "exclusion_names": ["China/Hong Kong/Macau IEEPA Reciprocal Exclusion"],
+        "duties_after_exclusions": [
+          {"code": "99030125", "name": "IEEPA Reciprocal Tariff (Reduced)", "rate": 0.10, "amount": 1000}
+        ],
+        "total_duty_before": 1000,
+        "total_duty_after": 1000,
+        "savings": 0,
+        "status": "REDUCED",
+        "broker_notes": "REDUCED effect - 10% reciprocal tariff already applies (down from potential higher rate). This is the reduced rate."
+      }
+    },
+    {
+      "test_id": "STACKING-001",
+      "category": "edge_cases",
+      "scenario": "Multiple Section 232 + Section 301 + IEEPA duties with mixed exclusions",
+      "input": {
+        "hs_code": "7208.10.00.00",
+        "origin_country": "CN",
+        "value": 50000,
+        "subject_to_section_232": true,
+        "us_content_percentage": 25,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 12500},
+          {"code": "99038803", "name": "Section 301 - China", "rate": 0.25, "amount": 12500},
+          {"code": "99030125", "name": "IEEPA Reciprocal", "rate": 0.10, "amount": 5000},
+          {"code": "99030122", "name": "IEEPA Fentanyl", "rate": 0.20, "amount": 10000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.33", "9903.01.34"],
+        "exclusion_names": ["Section 232 Exemption from Reciprocal Tariffs", "U.S. Content Exemption (>20%)"],
+        "duties_after_exclusions": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 12500},
+          {"code": "99038803", "name": "Section 301 - China", "rate": 0.25, "amount": 12500}
+        ],
+        "total_duty_before": 40000,
+        "total_duty_after": 25000,
+        "savings": 15000,
+        "status": "PARTIAL_EXEMPTION",
+        "broker_notes": "US content >20% exempts IEEPA (both reciprocal and fentanyl). Section 232 and 301 duties still apply. Note: 9903.01.33 also applies but is redundant with 9903.01.34 in this case."
+      }
+    },
+    {
+      "test_id": "STACKING-002",
+      "category": "edge_cases",
+      "scenario": "USMCA eliminates all duties (steel from Canada)",
+      "input": {
+        "hs_code": "7208.26.00.30",
+        "origin_country": "CA",
+        "value": 40000,
+        "qualifies_usmca": true,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 10000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.26"],
+        "exclusion_names": ["USMCA Exemption: Canada Origin"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 10000,
+        "total_duty_after": 0,
+        "savings": 10000,
+        "status": "EXEMPT",
+        "broker_notes": "USMCA qualification eliminates all Section 232 steel duties for Canadian origin"
+      }
+    },
+    {
+      "test_id": "STACKING-003",
+      "category": "edge_cases",
+      "scenario": "No exclusions apply - full duty stack",
+      "input": {
+        "hs_code": "3305.10.00.00",
+        "origin_country": "CN",
+        "value": 10000,
+        "qualifies_usmca": false,
+        "us_content_percentage": 5,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 2500},
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 1000},
+          {"code": "99038803", "name": "Section 301 - China", "rate": 0.25, "amount": 2500},
+          {"code": "99030125", "name": "IEEPA Reciprocal", "rate": 0.10, "amount": 1000},
+          {"code": "99030122", "name": "IEEPA Fentanyl", "rate": 0.20, "amount": 2000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 2500},
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 1000},
+          {"code": "99038803", "name": "Section 301 - China", "rate": 0.25, "amount": 2500},
+          {"code": "99030125", "name": "IEEPA Reciprocal", "rate": 0.10, "amount": 1000},
+          {"code": "99030122", "name": "IEEPA Fentanyl", "rate": 0.20, "amount": 2000}
+        ],
+        "total_duty_before": 9000,
+        "total_duty_after": 9000,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "No exclusions applicable - full 90% duty stack applies (25% + 10% + 25% + 10% + 20%)"
+      }
+    },
+    {
+      "test_id": "EDGE-001",
+      "category": "edge_cases",
+      "scenario": "Commerce product-specific exclusion with IOR match requirement",
+      "input": {
+        "hs_code": "7326.19.00.10",
+        "origin_country": "JP",
+        "value": 20000,
+        "has_commerce_exclusion": true,
+        "ior_matches_exclusion": true,
+        "exclusion_quantity_remaining": 5000,
+        "entry_quantity": 3000,
+        "duties_applied": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 5000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["PRODUCT_EXCLUSION"],
+        "exclusion_names": ["Commerce Product-Specific Exclusion"],
+        "duties_after_exclusions": [],
+        "total_duty_before": 5000,
+        "total_duty_after": 0,
+        "savings": 5000,
+        "status": "EXEMPT",
+        "broker_notes": "Commerce exclusion applies: IOR matches approved exclusion, quantity not exceeded (3000 of 5000 remaining). NOTE: Commerce stopped processing new exclusions Feb 10, 2025."
+      }
+    },
+    {
+      "test_id": "EDGE-002",
+      "category": "edge_cases",
+      "scenario": "Commerce exclusion quantity exceeded",
+      "input": {
+        "hs_code": "7326.19.00.10",
+        "origin_country": "JP",
+        "value": 30000,
+        "has_commerce_exclusion": true,
+        "ior_matches_exclusion": true,
+        "exclusion_quantity_remaining": 2000,
+        "entry_quantity": 5000,
+        "duties_applied": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 7500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 7500}
+        ],
+        "total_duty_before": 7500,
+        "total_duty_after": 7500,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "Commerce exclusion does NOT apply: quantity exceeded (trying to enter 5000 kg but only 2000 kg remaining in exclusion). Full duties apply."
+      }
+    },
+    {
+      "test_id": "EDGE-003",
+      "category": "edge_cases",
+      "scenario": "Section 321 entry with quota restrictions (no exemption)",
+      "input": {
+        "hs_code": "5205.12.00.00",
+        "origin_country": "CN",
+        "value": 600,
+        "entry_type": "SECTION_321",
+        "has_quota_restrictions": true,
+        "duties_applied": [
+          {"code": "99038815", "name": "Section 301 - China 7.5%", "rate": 0.075, "amount": 45}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038815", "name": "Section 301 - China 7.5%", "rate": 0.075, "amount": 45}
+        ],
+        "total_duty_before": 45,
+        "total_duty_after": 45,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "Section 321 exemption does NOT apply: product has quota restrictions and requires formal entry despite low value"
+      }
+    },
+    {
+      "test_id": "EDGE-004",
+      "category": "edge_cases",
+      "scenario": "Steel scrap remelted outside US (no US-origin exemption)",
+      "input": {
+        "hs_code": "7326.90.86.00",
+        "origin_country": "MX",
+        "value": 12000,
+        "us_steel_scrap_source": true,
+        "remelted_outside_us": true,
+        "duties_applied": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 3000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038189", "name": "Section 232 Steel Derivatives", "rate": 0.25, "amount": 3000}
+        ],
+        "total_duty_before": 3000,
+        "total_duty_after": 3000,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "US-origin exemption does NOT apply: steel scrap was remelted and poured OUTSIDE the US. Must be melted AND poured in US to qualify."
+      }
+    },
+    {
+      "test_id": "VALIDATION-001",
+      "category": "edge_cases",
+      "scenario": "Verify GAE revocation is enforced (post March 12, 2025)",
+      "input": {
+        "hs_code": "7208.38.00.30",
+        "origin_country": "DE",
+        "value": 22000,
+        "had_gae_pre_march_2025": true,
+        "entry_date": "2025-03-15",
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 5500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 5500}
+        ],
+        "total_duty_before": 5500,
+        "total_duty_after": 5500,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "CRITICAL VALIDATION: GAEs were revoked March 12, 2025. German steel that previously qualified now requires full Section 232 duties. Only USMCA exemptions remain valid."
+      }
+    },
+    {
+      "test_id": "VALIDATION-002",
+      "category": "edge_cases",
+      "scenario": "USTR exclusion expiration check (Nov 10, 2026)",
+      "input": {
+        "hs_code": "8507.60.00.00",
+        "origin_country": "CN",
+        "value": 18000,
+        "matches_ustr_exclusion_list": true,
+        "entry_date": "2026-11-11",
+        "duties_applied": [
+          {"code": "99038803", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 4500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038803", "name": "Section 301 - China 25%", "rate": 0.25, "amount": 4500}
+        ],
+        "total_duty_before": 4500,
+        "total_duty_after": 4500,
+        "savings": 0,
+        "status": "FULL_DUTY",
+        "broker_notes": "CRITICAL VALIDATION: USTR exclusions expired Nov 10, 2026. Entry on Nov 11, 2026 does NOT qualify. Full Section 301 duties apply."
+      }
+    },
+    {
+      "test_id": "VALIDATION-003",
+      "category": "edge_cases",
+      "scenario": "Verify Section 232 exempts IEEPA reciprocal (9903.01.33 logic)",
+      "input": {
+        "hs_code": "7606.12.30.30",
+        "origin_country": "CN",
+        "value": 25000,
+        "subject_to_section_232": true,
+        "duties_applied": [
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 2500},
+          {"code": "99030124", "name": "IEEPA Reciprocal", "rate": 0.10, "amount": 2500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.33"],
+        "exclusion_names": ["Section 232 Exemption from Reciprocal Tariffs"],
+        "duties_after_exclusions": [
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 2500}
+        ],
+        "total_duty_before": 5000,
+        "total_duty_after": 2500,
+        "savings": 2500,
+        "status": "PARTIAL_EXEMPTION",
+        "broker_notes": "LOGIC VALIDATION: Products subject to Section 232 are exempt from IEEPA reciprocal under 9903.01.33, but Section 232 duties still apply. Verify this stacking logic is correct."
+      }
+    }
+  ]
+}

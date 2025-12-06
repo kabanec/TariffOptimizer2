@@ -636,6 +636,13 @@ def exclusion_tester():
     return render_template('exclusion_tester.html', username=session.get('username'))
 
 
+@app.route('/test-validator')
+@login_required
+def test_validator():
+    """Test validator page for customs brokers to validate exclusion logic"""
+    return render_template('test_validator.html', username=session.get('username'))
+
+
 # ========== EXCLUSION UPDATE CHECKER HELPER FUNCTIONS ==========
 
 def discover_regulatory_changes(last_check):
