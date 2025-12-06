@@ -668,8 +668,7 @@
                 return;
             }
 
-            // Hide metals panel, show loading
-            document.getElementById('section232MetalsPanel').style.display = 'none';
+            // Show loading (keep metals panel visible)
             document.getElementById('loadingIndicator').style.display = 'block';
 
             const hsCode = document.getElementById('hsCode').value.trim();
@@ -705,6 +704,9 @@
                 }
 
                 displayResults(data, shipmentValue);
+
+                // Keep Section 232 metals panel visible so user can adjust and recalculate
+                document.getElementById('section232MetalsPanel').style.display = 'block';
             } catch (error) {
                 showError(error.message);
             } finally {
