@@ -628,6 +628,7 @@
             // Collect metal composition data
             const metalComposition = [];
             const metalInputs = document.querySelectorAll('#metalCompositionFields input[data-metal]');
+            let totalPercentage = 0;
 
             for (const input of metalInputs) {
                 const metalType = input.dataset.metal;
@@ -645,6 +646,8 @@
                     return;
                 }
 
+                totalPercentage += percentageValue;
+
                 // Convert percentage to decimal (e.g., 100% = 1.0, 20% = 0.20)
                 const decimalValue = (percentageValue / 100).toFixed(2);
 
@@ -653,6 +656,12 @@
                     percentage: decimalValue,
                     country: country
                 });
+            }
+
+            // Validate total percentage doesn't exceed 100%
+            if (totalPercentage > 100) {
+                alert(`Total metal composition cannot exceed 100%. Current total: ${totalPercentage.toFixed(2)}%`);
+                return;
             }
 
             // Hide metals panel, show loading

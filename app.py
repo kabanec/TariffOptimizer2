@@ -687,15 +687,17 @@ def api_tariff_lookup():
                                     break
 
                             # Check for metal keywords (only if not automotive)
+                            # Note: Check rate_label as well since it may be more specific than description
                             if not is_automotive:
+                                rate_label_lower = rate_label.lower()
                                 for metal in metal_keywords:
-                                    if metal in desc_lower:
+                                    if metal in desc_lower or metal in rate_label_lower:
                                         section_232_metal_options.append({
                                             'metal': metal,
                                             'description': description,
                                             'rateLabel': rate_label
                                         })
-                                        break
+                                        # Don't break - a single rate could mention multiple metals
                     else:
                         duty_breakdown.append(duty_info)
 
