@@ -699,7 +699,7 @@ def api_tariff_lookup():
                                             'description': description,
                                             'rateLabel': rate_label
                                         })
-                                        # Don't break - a single rate could mention multiple metals
+                                        break  # Each duty is for one specific metal
                     else:
                         duty_breakdown.append(duty_info)
 
