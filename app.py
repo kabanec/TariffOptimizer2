@@ -783,29 +783,32 @@ Product Information:
 - Country of Origin: {product_info.get('origin')}
 - Shipment Value: ${product_info.get('value')}
 
-Applicable Tariffs Found:
+Applicable Tariffs Found (from AvaTax):
 {tariff_summary}
 
-Based on these tariffs, generate 3-5 targeted questions to determine eligibility for exclusions. Questions should:
-1. Be specific to the tariff categories present
-2. Help determine if USMCA, U.S. content, or other exemptions apply
-3. Follow CBP guidance for determining exclusion eligibility
-4. Be answerable with yes/no, multiple choice, or percentage values
+CRITICAL RULES:
+1. ONLY generate questions relevant to the ACTUAL tariffs found above
+2. DO NOT ask about USMCA if origin is China/Hong Kong/Macau (USMCA only applies to Canada/Mexico)
+3. DO NOT ask about Section 232 exemptions if no Section 232 tariffs were found
+4. DO NOT ask about Section 301 exemptions if no Section 301 tariffs were found
+5. Focus questions on the specific exclusion codes that could apply to THIS origin country
 
-For each question, provide:
-- "question": The question text
-- "type": "boolean", "multiple_choice", or "percentage"
-- "options": Array of options (for multiple_choice only)
-- "category": The tariff category this question relates to (e.g., "section_232_steel")
-- "help": Brief explanation of why this matters
-- "exclusion_code": The Chapter 99 exclusion code this question determines (e.g., "9903.01.26" for USMCA Canada)
+Based on the tariffs found and the origin country ({product_info.get('origin')}), generate 2-4 targeted questions:
 
-Example questions:
-- For Section 232 Steel: "Does this steel qualify for USMCA treatment?" (boolean, helps determine 9903.01.26 or 9903.01.27)
-- For Section 232 Steel: "Was the steel melted and poured in the United States?" (boolean, helps determine 9903.81.92)
-- For Section 301: "Does this product match any of the 164 USTR product-specific exclusions?" (boolean, helps determine 9903.88.69)
-- For IEEPA: "What percentage of U.S. content does this product contain?" (percentage, helps determine 9903.01.34 if >20%)
-- For automotive products: "Is this product an automotive part, passenger vehicle, or heavy truck?" (multiple_choice)
+For Section 232 tariffs (if present):
+- If origin is CA or MX: Ask about USMCA qualification (9903.01.26 or 9903.01.27)
+- If origin is NOT CA/MX: Ask about U.S. melting/pouring (9903.81.92 for steel, US_ORIGIN_ALUMINUM for aluminum)
+- Ask about Commerce Department product-specific exclusions if applicable
+
+For Section 301 tariffs (if present and origin is CN/HK/MO):
+- Ask if product matches any of the 164 USTR product-specific exclusions (9903.88.69)
+- Ask if product is manufacturing equipment (9903.88.70)
+- Ask about Section 321 de minimis entry (if value < $800)
+
+For IEEPA tariffs (if present and origin is CN/HK/MO):
+- Ask about U.S. content percentage (9903.01.34 exempts if >20%)
+- Ask if product is informational materials (9903.01.21 - books, films, CDs, etc.)
+- Note: If Section 232 tariffs also apply, IEEPA Reciprocal is automatically exempt (9903.01.33)
 
 Return ONLY a JSON array of questions. No markdown, no explanations.
 
@@ -813,9 +816,9 @@ Return ONLY a JSON array of questions. No markdown, no explanations.
   {{
     "question": "...",
     "type": "boolean",
-    "category": "section_232_steel",
+    "category": "section_301",
     "help": "...",
-    "exclusion_code": "9903.01.26"
+    "exclusion_code": "9903.88.69"
   }},
   ...
 ]"""
