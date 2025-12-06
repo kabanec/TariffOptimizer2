@@ -671,7 +671,9 @@ def api_tariff_lookup():
                         punitive_tariffs.append(duty_info)
 
                         # Check for Section 232 automotive-related duties
-                        if 'section 232' in rate_label.lower() or 'section 232' in description.lower() or hs_code_item.startswith('9903'):
+                        # IMPORTANT: Only check duties that have "SECTION 232" in the rateLabel
+                        # Don't match other 9903* codes like Fentanyl
+                        if 'section 232' in rate_label.lower():
                             automotive_keywords = ['auto', 'heavy vehicle', 'trucks', 'medium truck', 'parts', 'buses']
                             metal_keywords = ['steel', 'aluminum', 'copper', 'lumber']
                             desc_lower = description.lower()
@@ -702,6 +704,7 @@ def api_tariff_lookup():
                                             'rateLabel': rate_label
                                         })
                                         break  # Each duty is for one specific metal
+                                logger.info(f"  -> No metal match found for this duty")
                     else:
                         duty_breakdown.append(duty_info)
 
