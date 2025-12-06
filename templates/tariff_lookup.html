@@ -458,14 +458,21 @@
                 window.currentMetalOptions = data.section232MetalOptions || [];
                 window.currentShipmentValue = shipmentValue;
 
+                // DEBUG: Log what we received
+                console.log('Section 232 Automotive Options:', data.section232AutomotiveOptions);
+                console.log('Section 232 Metal Options:', data.section232MetalOptions);
+
                 // Check if Section 232 parameters are required
                 // Priority: Automotive first, then metals
                 if (data.section232AutomotiveOptions && data.section232AutomotiveOptions.length > 0) {
                     const hasMetals = data.section232MetalOptions && data.section232MetalOptions.length > 0;
+                    console.log('Showing automotive panel, hasMetals:', hasMetals);
                     showSection232AutomotivePanel(data.section232AutomotiveOptions, hasMetals);
                 } else if (data.section232MetalOptions && data.section232MetalOptions.length > 0) {
+                    console.log('Showing metals panel with options:', data.section232MetalOptions);
                     showSection232MetalsPanel(data.section232MetalOptions);
                 } else {
+                    console.log('No Section 232 parameters required, showing results');
                     displayResults(data, shipmentValue);
                 }
             } catch (error) {
@@ -502,6 +509,8 @@
         }
 
         function showSection232MetalsPanel(metalOptions) {
+            console.log('showSection232MetalsPanel called with:', JSON.stringify(metalOptions, null, 2));
+
             // Hide other panels, show metals panel
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('section232AutomotivePanel').style.display = 'none';
@@ -511,7 +520,9 @@
             const fieldsContainer = document.getElementById('metalCompositionFields');
             fieldsContainer.innerHTML = '';
 
-            metalOptions.forEach(metalOpt => {
+            console.log(`Creating fields for ${metalOptions.length} metals`);
+            metalOptions.forEach((metalOpt, index) => {
+                console.log(`Processing metal ${index}:`, metalOpt);
                 const metalType = metalOpt.metal;
                 const metalCapitalized = metalType.charAt(0).toUpperCase() + metalType.slice(1);
 
