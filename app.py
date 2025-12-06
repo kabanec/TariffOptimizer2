@@ -664,36 +664,22 @@ def find_applicable_tariffs():
 
         logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}, value ${value}")
 
-        # Call AvaTax Quotes API to get actual tariffs
-        quotes_request = {
-            "companyId": AVALARA_COMPANY_ID,
-            "transactionType": "import",
-            "calculation": "dutyAndTax",
-            "lines": [
-                {
-                    "lineNumber": "1",
-                    "hsCode": hs_code,
-                    "countryOfOrigin": origin,
-                    "destinationCountry": "US",
-                    "actualValueAmount": value,
-                    "quantityValue": 1,
-                    "quantityUnit": "EA"
-                }
-            ]
-        }
-
+        # Call AvaTax API using the existing function
         api_response = call_avatax_api(
-            endpoint='/quotes',
-            method='POST',
-            payload=quotes_request
+            environment='production',
+            hs_code=hs_code,
+            origin_country=origin,
+            destination_country='US',
+            shipment_value=value,
+            mode_of_transport='courier'
         )
 
-        if api_response.get('status_code') != 200:
-            logger.error(f"AvaTax API error: {api_response}")
+        if 'error' in api_response:
+            logger.error(f"AvaTax API error: {api_response['error']}")
             return jsonify({
                 'success': False,
-                'error': f"AvaTax API returned status {api_response.get('status_code')}"
-            }), api_response.get('status_code', 500)
+                'error': api_response['error']
+            }), 500
 
         # Parse duty granularity to find Chapter 98/99 tariffs
         tariffs = []
