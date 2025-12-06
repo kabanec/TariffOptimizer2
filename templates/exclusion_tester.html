@@ -485,13 +485,43 @@
                     logicDescription: 'IF properly_entered_under_chapter_98 == true AND NOT (subheading IN ["9802.00.40", "9802.00.50", "9802.00.60", "9802.00.80"]) THEN exempt from Section 301 duties'
                 }
             ],
-            // IEEPA Reciprocal Tariffs
+            // IEEPA Reciprocal Tariffs and Fentanyl-Related
             'ieepa_reciprocal': [
+                {
+                    code: '9903.01.21',
+                    name: 'Informational Materials Exemption',
+                    description: 'Informational materials including publications, films, posters, phonograph records, photographs, microfilms, microfiche, tapes, compact discs, CD ROMs, artworks, and news wire feeds are exempt from IEEPA tariffs.',
+                    appliesToHsCodes: ['99030124', '99030120', '99030122'],
+                    baseHsCodes: ['3305.10.00.00', '4901.*', '4902.*', '8523.*', '9701.*'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        isInformationalMaterial: true
+                    },
+                    source: 'CBP IEEPA FAQs; CSMS #66749380',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/trade-remedies/IEEPA-FAQ',
+                    logicDescription: 'IF product_type IN [publications, films, posters, phonograph_records, photographs, microfilms, microfiche, tapes, CDs, CD_ROMs, artworks, news_wire_feeds] THEN exempt from IEEPA tariffs'
+                },
+                {
+                    code: '9903.01.30',
+                    name: 'China/Hong Kong/Macau IEEPA Reciprocal Exclusion',
+                    description: 'Goods with country of origin China, Hong Kong, or Macau may be eligible for IEEPA Reciprocal exclusions. Currently 10% reciprocal tariff applies if not excluded.',
+                    appliesToHsCodes: ['99030125', '99030120'],
+                    baseHsCodes: ['3305.10.00.00', '*'],
+                    effect: 'REDUCED',
+                    conditions: {
+                        originCountries: ['CN', 'HK', 'MO'],
+                        requiresQualification: true
+                    },
+                    source: 'CBP CSMS #64649265; IEEPA FAQs',
+                    reference: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3da7831',
+                    logicDescription: 'IF origin_country IN ["CN", "HK", "MO"] AND qualifies_for_exclusion THEN reduced IEEPA reciprocal tariff (10% instead of higher rate)'
+                },
                 {
                     code: '9903.01.33',
                     name: 'Section 232 Exemption from Reciprocal Tariffs',
                     description: 'Products subject to Section 232 Steel, Aluminum, Autos tariffs are exempt from IEEPA Reciprocal tariffs. The steel/aluminum/copper content line can claim this exception.',
                     appliesToHsCodes: ['99030124', '99030120'],
+                    baseHsCodes: ['7208.*', '7606.*', '8703.*'],
                     effect: 'EXEMPT',
                     conditions: {
                         subjectToSection232: true
@@ -499,6 +529,20 @@
                     source: 'CBP IEEPA FAQs; CSMS guidance on reciprocal tariffs',
                     reference: 'https://www.cbp.gov/trade/programs-administration/trade-remedies/IEEPA-FAQ',
                     logicDescription: 'IF subject_to_section_232_tariffs == true (steel/aluminum/autos/copper content) THEN exempt from IEEPA reciprocal tariffs under 9903.01.33'
+                },
+                {
+                    code: '9903.01.34',
+                    name: 'U.S. Content Exemption (>20%)',
+                    description: 'Goods containing greater than 20% of U.S. content are exempt from IEEPA reciprocal tariffs.',
+                    appliesToHsCodes: ['99030125', '99030120', '99030124'],
+                    baseHsCodes: ['3305.10.00.00', '*'],
+                    effect: 'EXEMPT',
+                    conditions: {
+                        usContentPercentage: { min: 20 }
+                    },
+                    source: 'CBP CSMS #64649265; IEEPA FAQs',
+                    reference: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3da7831',
+                    logicDescription: 'IF us_content_percentage > 20% THEN exempt from IEEPA reciprocal tariffs'
                 }
             ]
         };
@@ -506,6 +550,39 @@
         // Sample duties for testing (normally would come from API)
         let currentDuties = [];
         let selectedExclusions = new Set();
+
+        // Load exclusions database from localStorage if available (with updated exclusions from AI)
+        function loadExclusionsDatabase() {
+            const stored = localStorage.getItem('exclusionsDatabase');
+            if (stored) {
+                try {
+                    const parsedDB = JSON.parse(stored);
+                    // Merge stored exclusions with hardcoded ones (hardcoded takes precedence)
+                    for (const category in parsedDB) {
+                        if (!EXCLUSIONS_DATABASE[category]) {
+                            EXCLUSIONS_DATABASE[category] = parsedDB[category];
+                        }
+                    }
+                    console.log('Loaded exclusions database from localStorage');
+                } catch (e) {
+                    console.error('Failed to load exclusions database from localStorage:', e);
+                }
+            }
+        }
+
+        // Save exclusions database to localStorage
+        function saveExclusionsDatabase() {
+            try {
+                localStorage.setItem('exclusionsDatabase', JSON.stringify(EXCLUSIONS_DATABASE));
+                localStorage.setItem('exclusionsDatabaseUpdated', new Date().toISOString());
+                console.log('Saved exclusions database to localStorage');
+            } catch (e) {
+                console.error('Failed to save exclusions database to localStorage:', e);
+            }
+        }
+
+        // Load database on startup
+        loadExclusionsDatabase();
 
         document.getElementById('exclusionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -530,7 +607,7 @@
         function generateMockDuties(hsCode, origin, value) {
             const duties = [];
 
-            // For HS 3305* from China, add Section 232 and Section 301
+            // For HS 3305* from China, add Section 232, Section 301, and IEEPA duties
             if (hsCode.startsWith('3305') && origin === 'CN') {
                 duties.push({
                     code: '99038187',
@@ -552,6 +629,20 @@
                     rate: 0.25,
                     amount: value * 0.25,
                     category: 'section_301'
+                });
+                duties.push({
+                    code: '99030125',
+                    name: 'IEEPA RECIPROCAL TARIFF - CHINA',
+                    rate: 0.10,
+                    amount: value * 0.10,
+                    category: 'ieepa_reciprocal'
+                });
+                duties.push({
+                    code: '99030122',
+                    name: 'IEEPA FENTANYL TARIFF - CHINA',
+                    rate: 0.20,
+                    amount: value * 0.20,
+                    category: 'ieepa_reciprocal'
                 });
             }
 
@@ -603,6 +694,10 @@
                 const logicHTML = exclusion.logicDescription ?
                     `<div class="logic-display"><strong>Logic:</strong> ${exclusion.logicDescription}</div>` : '';
 
+                // Build base HS codes display
+                const baseHsCodesHTML = exclusion.baseHsCodes ?
+                    `<div style="margin-top: 8px; font-size: 0.85em; color: #059bd2;"><strong>Base HS Codes:</strong> ${exclusion.baseHsCodes.join(', ')}</div>` : '';
+
                 // Build reference link
                 const referenceHTML = exclusion.reference ?
                     `<div class="reference-link">📄 <a href="${exclusion.reference}" target="_blank">Official Reference</a> | Source: ${exclusion.source}</div>` :
@@ -614,7 +709,8 @@
                         <strong>${exclusion.name}</strong>
                         <span class="info-badge badge-${exclusion.effect.toLowerCase()}">${exclusion.effect}</span>
                         <br>
-                        <small style="color: #666;">Code: ${exclusion.code} | Applies to: ${exclusion.dutyName}</small>
+                        <small style="color: #666;">Exclusion Code: ${exclusion.code} | Applies to Chapter 99: ${exclusion.dutyName}</small>
+                        ${baseHsCodesHTML}
                         <br>
                         <small>${exclusion.description}</small>
                     </label>
