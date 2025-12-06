@@ -295,9 +295,9 @@
             <!-- Error Display -->
             <div id="errorDisplay" style="display: none;"></div>
 
-            <!-- Section 232 Parameter Selection -->
-            <div id="section232Panel" class="section" style="display: none;">
-                <h2 class="section-title">Section 232 - Additional Parameters Required</h2>
+            <!-- Section 232 Automotive Parameter Selection -->
+            <div id="section232AutomotivePanel" class="section" style="display: none;">
+                <h2 class="section-title">Section 232 - Automotive Parameters Required</h2>
                 <div class="alert-warning">
                     <strong>⚠️ Section 232 Automotive Duties Detected</strong><br>
                     Please specify the automotive category to calculate accurate duties.
@@ -312,7 +312,30 @@
                         <span class="help-text">Select the automotive category that applies to your shipment</span>
                     </div>
                     <div class="button-group">
-                        <button type="button" class="btn btn-primary" onclick="recalculateWithSection232()">
+                        <button type="button" class="btn btn-primary" onclick="recalculateWithSection232Automotive()">
+                            <span class="btn-icon">🔍</span>
+                            Recalculate with Parameters
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="cancelSection232()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 232 Metals Parameter Selection -->
+            <div id="section232MetalsPanel" class="section" style="display: none;">
+                <h2 class="section-title">Section 232 - Metal Composition Parameters Required</h2>
+                <div class="alert-warning">
+                    <strong>⚠️ Section 232 Metal Duties Detected</strong><br>
+                    Please specify the metal composition and country of origin for each detected metal.
+                </div>
+                <div class="compact-form">
+                    <div id="metalCompositionFields">
+                        <!-- Metal fields will be dynamically populated by JavaScript -->
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="recalculateWithSection232Metals()">
                             <span class="btn-icon">🔍</span>
                             Recalculate with Parameters
                         </button>
@@ -436,9 +459,17 @@
                     throw new Error(data.error || 'Failed to calculate tariffs');
                 }
 
-                // Check if Section 232 automotive parameters are required
+                // Store metal options globally for later use if automotive is not applicable
+                window.currentMetalOptions = data.section232MetalOptions || [];
+                window.currentShipmentValue = shipmentValue;
+
+                // Check if Section 232 parameters are required
+                // Priority: Automotive first, then metals
                 if (data.section232AutomotiveOptions && data.section232AutomotiveOptions.length > 0) {
-                    showSection232Panel(data.section232AutomotiveOptions);
+                    const hasMetals = data.section232MetalOptions && data.section232MetalOptions.length > 0;
+                    showSection232AutomotivePanel(data.section232AutomotiveOptions, hasMetals);
+                } else if (data.section232MetalOptions && data.section232MetalOptions.length > 0) {
+                    showSection232MetalsPanel(data.section232MetalOptions);
                 } else {
                     displayResults(data, shipmentValue);
                 }
@@ -449,10 +480,11 @@
             }
         }
 
-        function showSection232Panel(options) {
-            // Hide results, show Section 232 parameter panel
+        function showSection232AutomotivePanel(options, hasMetals) {
+            // Hide results, show Section 232 automotive parameter panel
             document.getElementById('resultsSection').style.display = 'none';
-            document.getElementById('section232Panel').style.display = 'block';
+            document.getElementById('section232MetalsPanel').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'block';
 
             // Populate dropdown with options
             const select = document.getElementById('section232Auto');
@@ -464,17 +496,96 @@
                 option.textContent = opt.keyword + ' - ' + opt.description;
                 select.appendChild(option);
             });
+
+            // If there are also metal duties, add "Not related to automotive" option
+            if (hasMetals) {
+                const notRelatedOption = document.createElement('option');
+                notRelatedOption.value = '__NOT_AUTOMOTIVE__';
+                notRelatedOption.textContent = 'Not related to automotive (proceed to metal composition)';
+                select.appendChild(notRelatedOption);
+            }
         }
 
-        async function recalculateWithSection232() {
+        function showSection232MetalsPanel(metalOptions) {
+            // Hide other panels, show metals panel
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'none';
+            document.getElementById('section232MetalsPanel').style.display = 'block';
+
+            // Populate metal composition fields
+            const fieldsContainer = document.getElementById('metalCompositionFields');
+            fieldsContainer.innerHTML = '';
+
+            metalOptions.forEach(metalOpt => {
+                const metalType = metalOpt.metal;
+                const metalCapitalized = metalType.charAt(0).toUpperCase() + metalType.slice(1);
+
+                const fieldGroup = document.createElement('div');
+                fieldGroup.style.marginBottom = '20px';
+                fieldGroup.style.padding = '15px';
+                fieldGroup.style.background = '#f0f0f0';
+                fieldGroup.style.borderRadius = '8px';
+
+                fieldGroup.innerHTML = `
+                    <h4 style="margin-bottom: 10px; color: #333;">${metalCapitalized}</h4>
+                    <div class="form-group">
+                        <label for="metal_percent_${metalType}">Composition Percentage (0-100%) *</label>
+                        <input type="number" id="metal_percent_${metalType}" class="form-control"
+                               min="0" max="100" step="0.01" value="100" required
+                               data-metal="${metalType}">
+                        <span class="help-text">Default: 100%</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="metal_coo_${metalType}">Country of Origin *</label>
+                        <select id="metal_coo_${metalType}" class="form-control" required data-metal="${metalType}">
+                            <option value="">-- Select Country --</option>
+                            <option value="US">United States</option>
+                            <option value="CN">China</option>
+                            <option value="MX">Mexico</option>
+                            <option value="CA">Canada</option>
+                            <option value="DE">Germany</option>
+                            <option value="JP">Japan</option>
+                            <option value="KR">South Korea</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="FR">France</option>
+                            <option value="IT">Italy</option>
+                            <option value="IN">India</option>
+                            <option value="BR">Brazil</option>
+                            <option value="VN">Vietnam</option>
+                            <option value="TH">Thailand</option>
+                            <option value="MY">Malaysia</option>
+                            <option value="ID">Indonesia</option>
+                            <option value="PH">Philippines</option>
+                            <option value="PL">Poland</option>
+                            <option value="TR">Turkey</option>
+                            <option value="ES">Spain</option>
+                        </select>
+                        <span class="help-text">Select the country where this metal originates</span>
+                    </div>
+                `;
+
+                fieldsContainer.appendChild(fieldGroup);
+            });
+        }
+
+        async function recalculateWithSection232Automotive() {
             const section232Auto = document.getElementById('section232Auto').value;
             if (!section232Auto) {
                 alert('Please select an automotive category');
                 return;
             }
 
+            // Check if user selected "Not related to automotive"
+            if (section232Auto === '__NOT_AUTOMOTIVE__') {
+                // Show metals panel instead
+                if (window.currentMetalOptions && window.currentMetalOptions.length > 0) {
+                    showSection232MetalsPanel(window.currentMetalOptions);
+                }
+                return;
+            }
+
             // Hide section 232 panel, show loading
-            document.getElementById('section232Panel').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'none';
             document.getElementById('loadingIndicator').style.display = 'block';
 
             const hsCode = document.getElementById('hsCode').value.trim();
@@ -518,8 +629,85 @@
             }
         }
 
+        async function recalculateWithSection232Metals() {
+            // Collect metal composition data
+            const metalComposition = [];
+            const metalInputs = document.querySelectorAll('#metalCompositionFields input[data-metal]');
+
+            for (const input of metalInputs) {
+                const metalType = input.dataset.metal;
+                const percentageValue = parseFloat(input.value);
+                const countrySelect = document.getElementById(`metal_coo_${metalType}`);
+                const country = countrySelect.value;
+
+                if (!country) {
+                    alert(`Please select country of origin for ${metalType}`);
+                    return;
+                }
+
+                if (isNaN(percentageValue) || percentageValue < 0 || percentageValue > 100) {
+                    alert(`Please enter a valid percentage (0-100) for ${metalType}`);
+                    return;
+                }
+
+                // Convert percentage to decimal (e.g., 100% = 1.0, 20% = 0.20)
+                const decimalValue = (percentageValue / 100).toFixed(2);
+
+                metalComposition.push({
+                    metal: metalType,
+                    percentage: decimalValue,
+                    country: country
+                });
+            }
+
+            // Hide metals panel, show loading
+            document.getElementById('section232MetalsPanel').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            const hsCode = document.getElementById('hsCode').value.trim();
+            const originCountry = document.getElementById('originCountry').value;
+            const destinationCountry = document.getElementById('destinationCountry').value;
+            const entryDate = document.getElementById('entryDate').value;
+            const shipmentValue = parseFloat(document.getElementById('shipmentValue').value);
+            const modeOfTransport = document.getElementById('modeOfTransport').value;
+            const calculatorType = document.getElementById('calculatorType').value;
+
+            try {
+                const response = await fetch('/api/tariff-lookup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hsCode,
+                        originCountry,
+                        destinationCountry,
+                        entryDate,
+                        shipmentValue,
+                        modeOfTransport,
+                        calculatorType,
+                        metalComposition: metalComposition,
+                        environment: 'sandbox'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to calculate tariffs');
+                }
+
+                displayResults(data, shipmentValue);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
         function cancelSection232() {
-            document.getElementById('section232Panel').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'none';
+            document.getElementById('section232MetalsPanel').style.display = 'none';
         }
 
         function displayResults(data, shipmentValue) {

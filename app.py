@@ -244,7 +244,7 @@ Focus: Duties, taxes, HS codes, tax codes, rates, summary details, country rules
     return base_prompt
 
 
-def call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type='courier', section_232_auto=None):
+def call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type='courier', section_232_auto=None, metal_composition=None):
     """Call AvaTax Global Compliance API for landed cost calculation"""
     try:
         import base64
@@ -264,7 +264,46 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"Endpoint: {endpoint}")
         logger.info(f"Calculator Type: {calculator_type}")
         logger.info(f"Section 232 Auto: {section_232_auto}")
+        logger.info(f"Metal Composition: {metal_composition}")
         logger.info(f"HS Code: {hs_code} (normalized: {hs_code_normalized}), Origin: {origin_country}, Destination: {destination_country}")
+
+        # Build item parameters based on Section 232 inputs
+        item_parameters = []
+
+        # Add automotive parameters if provided
+        if section_232_auto:
+            item_parameters.extend([
+                {
+                    "name": "232_auto",
+                    "value": section_232_auto,
+                    "unit": ""
+                },
+                {
+                    "name": "232_coo",
+                    "value": origin_country,
+                    "unit": ""
+                }
+            ])
+
+        # Add metal composition parameters if provided
+        if metal_composition:
+            for metal_data in metal_composition:
+                metal_type = metal_data.get('metal')
+                percentage = metal_data.get('percentage', '1.0')  # Default 100% = 1.0
+                country = metal_data.get('country', origin_country)
+
+                item_parameters.extend([
+                    {
+                        "name": "232_metal_percent",
+                        "value": str(percentage),
+                        "unit": metal_type
+                    },
+                    {
+                        "name": "metal_coo",
+                        "value": country,
+                        "unit": metal_type
+                    }
+                ])
 
         # Build Quotes API request (matching quotes/create format)
         # Set region based on destination country
@@ -308,18 +347,7 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                                 "unit": "g"
                             }
                         ],
-                        "parameters": [
-                            {
-                                "name": "232_auto",
-                                "value": section_232_auto,
-                                "unit": ""
-                            },
-                            {
-                                "name": "232_coo",
-                                "value": origin_country,
-                                "unit": ""
-                            }
-                        ] if section_232_auto else []
+                        "parameters": item_parameters
                     },
                     "preferenceProgramApplicable": False,
                     "classificationParameters": [
@@ -583,13 +611,14 @@ def api_tariff_lookup():
         mode_of_transport = data.get('modeOfTransport', 'AIR')
         calculator_type = data.get('calculatorType', 'courier')
         section_232_auto = data.get('section232Auto')  # Optional Section 232 automotive parameter
+        metal_composition = data.get('metalComposition')  # Optional Section 232 metal composition
         environment = data.get('environment', 'sandbox')
 
         if not all([hs_code, origin_country, destination_country, entry_date]):
             return jsonify({'error': 'Missing required fields'}), 400
 
         # Call AvaTax Global Compliance API
-        api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type, section_232_auto)
+        api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type, section_232_auto, metal_composition)
 
         if 'error' in api_response:
             logger.error(f"AvaTax API Error: {api_response}")
@@ -604,6 +633,7 @@ def api_tariff_lookup():
         duty_breakdown = []
         punitive_tariffs = []
         section_232_automotive_options = []
+        section_232_metal_options = []
 
         try:
             # Extract line data from Quotes API response
@@ -641,16 +671,31 @@ def api_tariff_lookup():
                         # Check for Section 232 automotive-related duties
                         if 'section 232' in rate_label.lower() or 'section 232' in description.lower() or hs_code_item.startswith('9903'):
                             automotive_keywords = ['auto', 'heavy vehicle', 'trucks', 'medium truck', 'parts', 'buses']
+                            metal_keywords = ['steel', 'aluminum', 'copper', 'lumber']
                             desc_lower = description.lower()
+
+                            # Check for automotive keywords
+                            is_automotive = False
                             for keyword in automotive_keywords:
                                 if keyword in desc_lower:
-                                    # Extract the specific automotive category from description
                                     section_232_automotive_options.append({
                                         'keyword': keyword.title(),
                                         'description': description,
                                         'rateLabel': rate_label
                                     })
+                                    is_automotive = True
                                     break
+
+                            # Check for metal keywords (only if not automotive)
+                            if not is_automotive:
+                                for metal in metal_keywords:
+                                    if metal in desc_lower:
+                                        section_232_metal_options.append({
+                                            'metal': metal,
+                                            'description': description,
+                                            'rateLabel': rate_label
+                                        })
+                                        break
                     else:
                         duty_breakdown.append(duty_info)
 
@@ -706,19 +751,28 @@ def api_tariff_lookup():
         )
 
         # Remove duplicates from section_232_automotive_options
-        unique_options = []
+        unique_automotive_options = []
         seen_keywords = set()
         for opt in section_232_automotive_options:
             if opt['keyword'] not in seen_keywords:
-                unique_options.append(opt)
+                unique_automotive_options.append(opt)
                 seen_keywords.add(opt['keyword'])
+
+        # Remove duplicates from section_232_metal_options
+        unique_metal_options = []
+        seen_metals = set()
+        for opt in section_232_metal_options:
+            if opt['metal'] not in seen_metals:
+                unique_metal_options.append(opt)
+                seen_metals.add(opt['metal'])
 
         return jsonify({
             'success': True,
             'apiResponse': api_response,
             'dutyBreakdown': duty_breakdown,
             'punitiveTariffs': punitive_tariffs,
-            'section232AutomotiveOptions': unique_options,
+            'section232AutomotiveOptions': unique_automotive_options,
+            'section232MetalOptions': unique_metal_options,
             'aiAnalysis': ai_analysis
         })
 
