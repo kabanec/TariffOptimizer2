@@ -690,8 +690,10 @@ def api_tariff_lookup():
                             # Note: Check rate_label as well since it may be more specific than description
                             if not is_automotive:
                                 rate_label_lower = rate_label.lower()
+                                logger.info(f"Checking metals for rate_label: {rate_label}")
                                 for metal in metal_keywords:
                                     if metal in desc_lower or metal in rate_label_lower:
+                                        logger.info(f"  -> Found metal '{metal}' in rate_label or description")
                                         section_232_metal_options.append({
                                             'metal': metal,
                                             'description': description,
@@ -761,12 +763,14 @@ def api_tariff_lookup():
                 seen_keywords.add(opt['keyword'])
 
         # Remove duplicates from section_232_metal_options
+        logger.info(f"Metal options before deduplication: {section_232_metal_options}")
         unique_metal_options = []
         seen_metals = set()
         for opt in section_232_metal_options:
             if opt['metal'] not in seen_metals:
                 unique_metal_options.append(opt)
                 seen_metals.add(opt['metal'])
+        logger.info(f"Metal options after deduplication: {unique_metal_options}")
 
         return jsonify({
             'success': True,
