@@ -646,12 +646,14 @@ def api_tariff_lookup():
                 calculation_summary = line.get("calculationSummary", {})
                 duty_granularity = calculation_summary.get("dutyGranularity", [])
 
+                logger.info(f"Processing {len(duty_granularity)} duty items")
                 for duty_item in duty_granularity:
                     duty_type = duty_item.get('type', 'STANDARD')
                     rate_label = duty_item.get('rateLabel', '')
                     description = duty_item.get('description', '')
                     effective_rate = float(duty_item.get('effectiveRate', 0))
                     hs_code_item = duty_item.get('hsCode', '')
+                    logger.info(f"Duty item: type={duty_type}, hsCode={hs_code_item}, rateLabel={rate_label}")
 
                     duty_info = {
                         'taxName': rate_label or description,
