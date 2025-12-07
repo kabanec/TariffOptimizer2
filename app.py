@@ -280,24 +280,12 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         # Build item parameters based on Section 232 inputs
         item_parameters = []
 
-        # CRITICAL FIX: For initial detection (no Section 232 params provided),
-        # the API auto-applies default 232_metal_percent=1.0 which filters duties to only steel.
-        # Solution: Explicitly send all possible metals with 1% each to force API to show ALL applicable duties.
-        if not section_232_auto and not metal_composition:
-            logger.info("Initial detection: sending 1% for all metals to get complete duty list")
-            for metal in ['steel', 'aluminum', 'copper', 'lumber']:
-                item_parameters.extend([
-                    {
-                        "name": "232_metal_percent",
-                        "value": "0.01",  # 1% for each metal
-                        "unit": metal
-                    },
-                    {
-                        "name": "metal_coo",
-                        "value": origin_country,
-                        "unit": metal
-                    }
-                ])
+        # DO NOT send metal parameters for initial detection
+        # This prevents false IEEPA tariffs for non-metal products like cosmetics
+        # Metal parameters should only be sent when:
+        # 1. User has provided metal composition (metal_composition is not None)
+        # 2. We're doing a second API call after detecting Section 232 tariffs
+        # For now, we rely on the API to return tariffs without metal params
 
         # Add automotive parameters if provided
         if section_232_auto:
@@ -707,24 +695,26 @@ def find_applicable_tariffs():
                 if duty_type == 'PUNITIVE' or hs_code_item.startswith(('9903', '9902', '98', '99')):
                     # Determine category based on HS code and description
                     category = 'unknown'
+                    desc_lower = description.lower()
+                    label_lower = rate_label.lower()
 
-                    # Section 232 Steel
-                    if hs_code_item.startswith('99038') and 'steel' in description.lower():
+                    # Section 232 Steel (99038.1.xx, 99038.6.xx, 99038.7.xx)
+                    if hs_code_item.startswith('99038') and 'steel' in desc_lower:
                         category = 'section_232_steel'
-                    # Section 232 Aluminum
-                    elif hs_code_item.startswith('99038') and 'aluminum' in description.lower():
+                    # Section 232 Aluminum (99038.5.xx)
+                    elif hs_code_item.startswith('99038') and 'aluminum' in desc_lower:
                         category = 'section_232_aluminum'
-                    # Section 232 Automotive
-                    elif hs_code_item.startswith('99030') and ('auto' in description.lower() or 'vehicle' in description.lower()):
+                    # Section 232 Automotive (99030.1.xx for autos)
+                    elif hs_code_item.startswith('99030') and ('auto' in desc_lower or 'vehicle' in desc_lower):
                         category = 'section_232_automotive'
-                    # Section 301
-                    elif hs_code_item.startswith('99038') and '301' in description.lower():
+                    # Section 301 China (99038.8.xx, 99038.0.xx)
+                    elif hs_code_item.startswith('99038') and ('301' in desc_lower or '301' in label_lower):
                         category = 'section_301'
-                    # IEEPA Reciprocal
-                    elif hs_code_item.startswith('99030') and 'reciprocal' in description.lower():
+                    # IEEPA Reciprocal - 99030125 or contains "reciprocal"
+                    elif hs_code_item == '99030125' or 'reciprocal' in desc_lower:
                         category = 'ieepa_reciprocal'
-                    # IEEPA Fentanyl
-                    elif hs_code_item.startswith('99030') and 'fentanyl' in description.lower():
+                    # IEEPA Fentanyl - 99030136 or contains "fentanyl"
+                    elif hs_code_item == '99030136' or 'fentanyl' in desc_lower:
                         category = 'ieepa_fentanyl'
 
                     tariffs.append({
@@ -737,6 +727,8 @@ def find_applicable_tariffs():
                     })
 
                     logger.info(f"Found punitive tariff: {hs_code_item} - {rate_label} ({category})")
+                    logger.info(f"  Description: {description}")
+                    logger.info(f"  Type: {duty_type}, Rate: {effective_rate*100:.2f}%")
 
         logger.info(f"Total punitive tariffs found: {len(tariffs)}")
 
