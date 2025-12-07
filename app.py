@@ -747,116 +747,59 @@ def find_applicable_tariffs():
 @app.route('/api/generate-stacking-questions', methods=['POST'])
 @login_required
 def generate_stacking_questions():
-    """Generate dynamic questions based on found tariffs using GPT-4"""
+    """Generate deterministic questions based on found tariffs (NO GPT-4)"""
     try:
+        from stacking_logic import get_required_questions
+
         data = request.json
         product_info = data.get('productInfo', {})
         found_tariffs = data.get('foundTariffs', [])
 
         logger.info(f"Generating questions for {len(found_tariffs)} tariffs")
 
-        # Build prompt for GPT-4
-        tariff_summary = "\n".join([f"- {t['name']} ({t['code']}, {t['category']})" for t in found_tariffs])
-
-        prompt = f"""You are a customs tariff expert. Generate intelligent questions to determine which Section 99 exclusions apply for this product.
-
-Product Information:
-- Base HS Code: {product_info.get('hsCode')}
-- Country of Origin: {product_info.get('origin')}
-- Shipment Value: ${product_info.get('value')}
-
-Applicable Tariffs Found (from AvaTax):
-{tariff_summary}
-
-CRITICAL RULES:
-1. ONLY generate questions relevant to the ACTUAL tariffs found above
-2. DO NOT ask about USMCA if origin is China/Hong Kong/Macau (USMCA only applies to Canada/Mexico)
-3. DO NOT ask about Section 232 exemptions if no Section 232 tariffs were found
-4. DO NOT ask about Section 301 exemptions if no Section 301 tariffs were found
-5. Focus questions on the specific exclusion codes that could apply to THIS origin country
-
-Based on the tariffs found and the origin country ({product_info.get('origin')}), generate 2-4 targeted questions:
-
-For Section 232 tariffs (if present):
-- ALWAYS ask about metal composition and origin for EACH metal detected (steel, aluminum, copper, lumber):
-  * "What percentage of the product is [METAL]?" (0-100%)
-  * "What is the country of origin for the [METAL] content?"
-  * These questions are CRITICAL for determining exemptions like:
-    - 9903.81.92: Steel melted and poured in the USA
-    - 9903.01.94: Aluminum smelted in the USA
-    - 9903.01.26/27: USMCA qualification (if origin is CA or MX)
-- Ask about Commerce Department product-specific exclusions if applicable
-- NOTE: Metal composition questions are REQUIRED even if not explicitly shown in tariff descriptions
-
-For Section 301 tariffs (if present and origin is CN/HK/MO):
-- Ask if product matches any of the 164 USTR product-specific exclusions (9903.88.69)
-- Ask if product is manufacturing equipment (9903.88.70)
-- NOTE: Section 321 de minimis exemption for China/HK/MO was ELIMINATED in September 2024 - do NOT ask about this
-
-For IEEPA tariffs (if present and origin is CN/HK/MO):
-- Ask about U.S. content percentage (9903.01.34 exempts if >20%)
-- Ask if product is informational materials (9903.01.21 - books, films, CDs, etc.)
-- Note: If Section 232 tariffs also apply, IEEPA Reciprocal is automatically exempt (9903.01.33)
-
-Return ONLY a JSON array of questions. No markdown, no explanations.
-
-Question types:
-- "boolean": Yes/No questions
-- "number": Numeric input (e.g., metal percentage 0-100)
-- "text": Text input (e.g., country code like "US", "CN")
-- "select": Multiple choice (provide "options" array)
-
-Example format:
-[
-  {{
-    "question": "What percentage of the product is steel?",
-    "type": "number",
-    "category": "section_232_steel",
-    "help": "Enter the steel content as a percentage (0-100%). This determines eligibility for U.S. melted/poured exemption.",
-    "exclusion_code": "9903.81.92",
-    "min": 0,
-    "max": 100,
-    "unit": "%"
-  }},
-  {{
-    "question": "What is the country of origin for the steel content?",
-    "type": "text",
-    "category": "section_232_steel",
-    "help": "Enter 2-letter country code (e.g., US, CN, MX). If melted and poured in USA, product may be exempt.",
-    "exclusion_code": "9903.81.92",
-    "placeholder": "US"
-  }},
-  {{
-    "question": "Does this product match any USTR product-specific exclusion?",
-    "type": "boolean",
-    "category": "section_301",
-    "help": "Check USTR Federal Register notices for your specific product description.",
-    "exclusion_code": "9903.88.69"
-  }}
-]"""
-
-        client = get_openai_client()
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a customs tariff expert specializing in CBP Chapter 99 exclusions and stacking logic."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=2000
+        # Use deterministic logic to generate questions
+        questions = get_required_questions(
+            detected_tariffs=found_tariffs,
+            origin_country=product_info.get('origin', '')
         )
 
-        questions_json = response.choices[0].message.content.strip()
-        # Remove markdown code blocks if present
-        questions_json = questions_json.replace('```json', '').replace('```', '').strip()
+        logger.info(f"Generated {len(questions)} deterministic questions")
 
-        questions = json.loads(questions_json)
+        # Convert to format expected by frontend
+        formatted_questions = []
+        for q in questions:
+            formatted_q = {
+                'question': q['text'],
+                'type': q['type'],
+                'help': q.get('help', ''),
+                'required': q.get('required', True)
+            }
 
-        logger.info(f"Generated {len(questions)} questions")
+            # Add type-specific fields
+            if q['type'] == 'boolean':
+                formatted_q['options'] = q.get('options', ['Yes', 'No'])
+            elif q['type'] == 'slider':
+                formatted_q['type'] = 'number'  # Frontend compatibility
+                formatted_q['min'] = q.get('min', 0)
+                formatted_q['max'] = q.get('max', 100)
+                formatted_q['unit'] = q.get('unit', '%')
+            elif q['type'] == 'country_select':
+                formatted_q['type'] = 'text'
+                formatted_q['placeholder'] = 'US'
+
+            # Store original question ID for answer mapping
+            formatted_q['questionId'] = q['id']
+            formatted_q['questionIndex'] = q['index']
+
+            # Handle conditional questions
+            if 'conditional' in q:
+                formatted_q['conditional'] = q['conditional']
+
+            formatted_questions.append(formatted_q)
 
         return jsonify({
             'success': True,
-            'questions': questions
+            'questions': formatted_questions
         })
 
     except Exception as e:
@@ -866,9 +809,11 @@ Example format:
 
 @app.route('/api/analyze-stacking', methods=['POST'])
 @login_required
-def analyze_stacking():
-    """Analyze stacking order based on answers using exemption database (NOT GPT-4)"""
+def analyze_stacking_endpoint():
+    """Analyze stacking order based on answers using deterministic logic (NO GPT-4)"""
     try:
+        from stacking_logic import analyze_stacking
+
         data = request.json
         product_info = data.get('productInfo', {})
         found_tariffs = data.get('foundTariffs', [])
@@ -879,17 +824,72 @@ def analyze_stacking():
         logger.info(f"Product: {product_info}")
         logger.info(f"Answers: {answers}")
 
-        # Use exemption database to analyze stacking
-        result = analyze_stacking_with_exemptions(
-            product_info=product_info,
-            found_tariffs=found_tariffs,
-            questions=questions,
-            answers=answers
+        # Convert frontend answers to expected format
+        # Frontend sends: {"0": "25%", "1": "CN", ...}
+        # We need: {"steel_percentage": 25, "steel_origin_country": "CN", ...}
+        parsed_answers = {}
+        for q in questions:
+            question_id = q.get('questionId')
+            question_index = q.get('questionIndex')
+            question_type = q.get('type')
+
+            # Get answer by index
+            answer_raw = answers.get(str(question_index))
+
+            if answer_raw is not None:
+                # Parse based on type
+                if question_type == 'number':
+                    # Handle percentage strings like "25%" or "25"
+                    answer_str = str(answer_raw).replace('%', '').strip()
+                    try:
+                        parsed_answers[question_id] = float(answer_str)
+                    except:
+                        parsed_answers[question_id] = 0.0
+                elif question_type == 'boolean':
+                    answer_str = str(answer_raw).lower().strip()
+                    parsed_answers[question_id] = answer_str in ['yes', 'true', '1']
+                elif question_type == 'text':
+                    parsed_answers[question_id] = str(answer_raw).strip().upper()
+                else:
+                    parsed_answers[question_id] = answer_raw
+
+        logger.info(f"Parsed answers: {parsed_answers}")
+
+        # Use deterministic stacking analysis
+        analyzed_tariffs = analyze_stacking(
+            tariffs=found_tariffs,
+            answers=parsed_answers,
+            product_info=product_info
         )
 
-        logger.info(f"Analysis complete: {len(result['stackingOrder'])} tariffs, savings: ${result['savings']:.2f}")
+        # Calculate totals
+        total_before = sum(t['amount'] for t in found_tariffs)
+        total_after = sum(t['final_amount'] for t in analyzed_tariffs)
+        savings = total_before - total_after
 
-        logger.info(f"Stacking analysis complete: ${result['totalBefore']:.2f} -> ${result['totalAfter']:.2f}")
+        # Build stacking order for frontend
+        stacking_order = []
+        for t in analyzed_tariffs:
+            stacking_order.append({
+                'tariffName': t['name'],
+                'tariffCode': t['code'],
+                'category': t['category'],
+                'originalRate': f"{t['rate'] * 100:.2f}%",
+                'originalAmount': t['amount'],
+                'finalAmount': t['final_amount'],
+                'excluded': t['excluded'],
+                'exemptionCode': t['exemption_code'],
+                'reasoning': t['reasoning']
+            })
+
+        result = {
+            'stackingOrder': stacking_order,
+            'totalBefore': total_before,
+            'totalAfter': total_after,
+            'savings': savings
+        }
+
+        logger.info(f"Stacking analysis complete: ${total_before:.2f} -> ${total_after:.2f} (savings: ${savings:.2f})")
 
         return jsonify({
             'success': True,
@@ -898,6 +898,8 @@ def analyze_stacking():
 
     except Exception as e:
         logger.error(f"Error analyzing stacking: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
