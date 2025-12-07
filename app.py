@@ -789,7 +789,7 @@ For Section 232 tariffs (if present):
 For Section 301 tariffs (if present and origin is CN/HK/MO):
 - Ask if product matches any of the 164 USTR product-specific exclusions (9903.88.69)
 - Ask if product is manufacturing equipment (9903.88.70)
-- Ask about Section 321 de minimis entry (if value < $800)
+- NOTE: Section 321 de minimis exemption for China/HK/MO was ELIMINATED in September 2024 - do NOT ask about this
 
 For IEEPA tariffs (if present and origin is CN/HK/MO):
 - Ask about U.S. content percentage (9903.01.34 exempts if >20%)

@@ -181,7 +181,7 @@
     {
       "test_id": "S301-002",
       "category": "section_301",
-      "scenario": "Section 321 de minimis entry from China",
+      "scenario": "Section 321 de minimis entry from China - NO LONGER EXEMPT (as of Sept 2024)",
       "input": {
         "hs_code": "6109.10.00.40",
         "origin_country": "CN",
@@ -193,14 +193,16 @@
         ]
       },
       "expected_outcome": {
-        "applicable_exclusions": ["SECTION_321"],
-        "exclusion_names": ["De Minimis Exemption (Section 321)"],
-        "duties_after_exclusions": [],
+        "applicable_exclusions": [],
+        "exclusion_names": [],
+        "duties_after_exclusions": [
+          {"code": "99038815", "name": "Section 301 - China 7.5%", "rate": 0.075, "amount": 56.25}
+        ],
         "total_duty_before": 56.25,
-        "total_duty_after": 0,
-        "savings": 56.25,
-        "status": "EXEMPT",
-        "broker_notes": "Section 321 de minimis entries are exempt from Section 301 duties if no quota restrictions apply"
+        "total_duty_after": 56.25,
+        "savings": 0,
+        "status": "DUTY_APPLIES",
+        "broker_notes": "CRITICAL UPDATE: As of September 2024, Section 321 de minimis exemption was ELIMINATED for goods from China, Hong Kong, and Macau. Section 301 duties now apply regardless of shipment value."
       }
     },
     {

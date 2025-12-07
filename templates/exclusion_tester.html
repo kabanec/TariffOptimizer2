@@ -466,17 +466,17 @@
                 },
                 {
                     code: 'SECTION_321',
-                    name: 'De Minimis Exemption (Section 321)',
-                    description: 'Products properly entered under Section 321 (de minimis shipments) are not subject to Section 301 duties. Note: Goods with quota restrictions require formal entry.',
-                    appliesToHsCodes: ['99038803', '99038804', '99038809', '99038815'],
-                    effect: 'EXEMPT',
+                    name: 'De Minimis Exemption (Section 321) - ELIMINATED for CN/HK/MO',
+                    description: 'IMPORTANT: As of September 2024, Section 321 de minimis exemption NO LONGER APPLIES to goods from China, Hong Kong, or Macau. These goods are now subject to Section 301 duties regardless of shipment value. Section 321 still applies to other countries.',
+                    appliesToHsCodes: [],
+                    effect: 'NO_EXEMPTION',
                     conditions: {
-                        requiresSection321Entry: true,
-                        noQuotaRestrictions: true
+                        eliminatedForChinaHKMacau: true,
+                        effectiveDate: '2024-09-01'
                     },
-                    source: 'CBP Section 301 Trade Remedies FAQs',
-                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-301-trade-remedies/faqs',
-                    logicDescription: 'IF entry_type == "Section_321" AND shipment_value <= de_minimis_threshold AND NOT (has_quota_restrictions) THEN exempt from Section 301 duties'
+                    source: 'CBP Section 321 Modification',
+                    reference: 'https://www.cbp.gov/trade/programs-administration/entry-summary/section-321',
+                    logicDescription: 'IF origin_country IN ["CN", "HK", "MO"] THEN NOT exempt from Section 301 duties (regardless of value). IF origin_country NOT IN ["CN", "HK", "MO"] AND entry_type == "Section_321" AND shipment_value <= $800 AND NOT (has_quota_restrictions) THEN may be exempt'
                 },
                 {
                     code: 'CHAPTER_98',
