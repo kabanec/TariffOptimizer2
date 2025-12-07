@@ -450,9 +450,10 @@
                             </label>
                         </div>
                     `;
-                } else if (question.type === 'multiple_choice') {
+                } else if (question.type === 'multiple_choice' || question.type === 'select') {
                     optionsHTML = '<div class="answer-options">';
-                    question.options.forEach(option => {
+                    const options = question.options || [];
+                    options.forEach(option => {
                         optionsHTML += `
                             <label class="answer-option">
                                 <input type="radio" name="q${index}" value="${option}" onchange="selectAnswer(${index}, '${option}')">
@@ -461,11 +462,24 @@
                         `;
                     });
                     optionsHTML += '</div>';
-                } else if (question.type === 'percentage') {
+                } else if (question.type === 'percentage' || question.type === 'number') {
+                    const min = question.min || 0;
+                    const max = question.max || 100;
+                    const unit = question.unit || '';
+                    const placeholder = question.placeholder || `Enter value (${min}-${max})`;
                     optionsHTML = `
-                        <input type="number" class="text-input" id="q${index}" min="0" max="100"
-                               placeholder="Enter percentage (0-100)"
-                               onchange="selectAnswer(${index}, this.value)">
+                        <input type="number" class="text-input" id="q${index}" min="${min}" max="${max}"
+                               placeholder="${placeholder}"
+                               onchange="selectAnswer(${index}, this.value + '${unit}')">
+                        ${unit ? `<span class="help-text">Unit: ${unit}</span>` : ''}
+                    `;
+                } else if (question.type === 'text') {
+                    const placeholder = question.placeholder || 'Enter your answer';
+                    optionsHTML = `
+                        <input type="text" class="text-input" id="q${index}"
+                               placeholder="${placeholder}"
+                               onchange="selectAnswer(${index}, this.value)"
+                               oninput="selectAnswer(${index}, this.value)">
                     `;
                 }
 

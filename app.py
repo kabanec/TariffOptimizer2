@@ -782,9 +782,15 @@ CRITICAL RULES:
 Based on the tariffs found and the origin country ({product_info.get('origin')}), generate 2-4 targeted questions:
 
 For Section 232 tariffs (if present):
-- If origin is CA or MX: Ask about USMCA qualification (9903.01.26 or 9903.01.27)
-- If origin is NOT CA/MX: Ask about U.S. melting/pouring (9903.81.92 for steel, US_ORIGIN_ALUMINUM for aluminum)
+- ALWAYS ask about metal composition and origin for EACH metal detected (steel, aluminum, copper, lumber):
+  * "What percentage of the product is [METAL]?" (0-100%)
+  * "What is the country of origin for the [METAL] content?"
+  * These questions are CRITICAL for determining exemptions like:
+    - 9903.81.92: Steel melted and poured in the USA
+    - 9903.01.94: Aluminum smelted in the USA
+    - 9903.01.26/27: USMCA qualification (if origin is CA or MX)
 - Ask about Commerce Department product-specific exclusions if applicable
+- NOTE: Metal composition questions are REQUIRED even if not explicitly shown in tariff descriptions
 
 For Section 301 tariffs (if present and origin is CN/HK/MO):
 - Ask if product matches any of the 164 USTR product-specific exclusions (9903.88.69)
@@ -798,15 +804,39 @@ For IEEPA tariffs (if present and origin is CN/HK/MO):
 
 Return ONLY a JSON array of questions. No markdown, no explanations.
 
+Question types:
+- "boolean": Yes/No questions
+- "number": Numeric input (e.g., metal percentage 0-100)
+- "text": Text input (e.g., country code like "US", "CN")
+- "select": Multiple choice (provide "options" array)
+
+Example format:
 [
   {{
-    "question": "...",
+    "question": "What percentage of the product is steel?",
+    "type": "number",
+    "category": "section_232_steel",
+    "help": "Enter the steel content as a percentage (0-100%). This determines eligibility for U.S. melted/poured exemption.",
+    "exclusion_code": "9903.81.92",
+    "min": 0,
+    "max": 100,
+    "unit": "%"
+  }},
+  {{
+    "question": "What is the country of origin for the steel content?",
+    "type": "text",
+    "category": "section_232_steel",
+    "help": "Enter 2-letter country code (e.g., US, CN, MX). If melted and poured in USA, product may be exempt.",
+    "exclusion_code": "9903.81.92",
+    "placeholder": "US"
+  }},
+  {{
+    "question": "Does this product match any USTR product-specific exclusion?",
     "type": "boolean",
     "category": "section_301",
-    "help": "...",
+    "help": "Check USTR Federal Register notices for your specific product description.",
     "exclusion_code": "9903.88.69"
-  }},
-  ...
+  }}
 ]"""
 
         client = get_openai_client()
