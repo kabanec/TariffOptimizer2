@@ -236,13 +236,13 @@
                         </div>
                         <div class="form-group">
                             <label for="baseHsCode">Base HS Code (10-digit)</label>
-                            <input type="text" id="baseHsCode" class="text-input" placeholder="e.g., 7208.10.00.00" required>
+                            <input type="text" id="baseHsCode" class="text-input" value="3305100000" placeholder="e.g., 7208.10.00.00" required>
                         </div>
                         <div class="form-group" style="margin-top: 15px;">
                             <label for="originCountry">Country of Origin</label>
                             <select id="originCountry" class="text-input">
                                 <option value="">-- Select Country --</option>
-                                <option value="CN">China (CN)</option>
+                                <option value="CN" selected>China (CN)</option>
                                 <option value="CA">Canada (CA)</option>
                                 <option value="MX">Mexico (MX)</option>
                                 <option value="HK">Hong Kong (HK)</option>
@@ -252,7 +252,7 @@
                         </div>
                         <div class="form-group" style="margin-top: 15px;">
                             <label for="shipmentValue">Shipment Value (USD)</label>
-                            <input type="number" id="shipmentValue" class="text-input" placeholder="e.g., 10000" required>
+                            <input type="number" id="shipmentValue" class="text-input" value="100" placeholder="e.g., 10000" required>
                         </div>
                         <button class="btn-next" onclick="findApplicableTariffs()">
                             Find Applicable Tariffs →
@@ -467,20 +467,46 @@
                     const max = question.max || 100;
                     const unit = question.unit || '';
                     const placeholder = question.placeholder || `Enter value (${min}-${max})`;
+
+                    // Use slider for percentage/number questions
                     optionsHTML = `
-                        <input type="number" class="text-input" id="q${index}" min="${min}" max="${max}"
-                               placeholder="${placeholder}"
-                               onchange="selectAnswer(${index}, this.value + '${unit}')">
-                        ${unit ? `<span class="help-text">Unit: ${unit}</span>` : ''}
+                        <div style="margin: 15px 0;">
+                            <input type="range" id="slider${index}" min="${min}" max="${max}" value="${min}" step="0.1"
+                                   style="width: 100%; height: 8px; border-radius: 5px; background: #ddd; outline: none;"
+                                   oninput="updateSliderValue(${index}, this.value, '${unit}')">
+                            <div style="text-align: center; margin-top: 10px; font-size: 24px; font-weight: bold; color: #1976d2;">
+                                <span id="sliderValue${index}">${min}</span>${unit}
+                            </div>
+                        </div>
                     `;
                 } else if (question.type === 'text') {
-                    const placeholder = question.placeholder || 'Enter your answer';
-                    optionsHTML = `
-                        <input type="text" class="text-input" id="q${index}"
-                               placeholder="${placeholder}"
-                               onchange="selectAnswer(${index}, this.value)"
-                               oninput="selectAnswer(${index}, this.value)">
-                    `;
+                    // Check if this is a country code question - use dropdown
+                    if (question.placeholder && (question.placeholder.includes('US') || question.placeholder.includes('CN') ||
+                        question.question.toLowerCase().includes('country') || question.question.toLowerCase().includes('origin'))) {
+                        optionsHTML = `
+                            <select class="text-input" id="q${index}" onchange="selectAnswer(${index}, this.value)">
+                                <option value="">-- Select Country --</option>
+                                <option value="US">United States (US)</option>
+                                <option value="CN">China (CN)</option>
+                                <option value="CA">Canada (CA)</option>
+                                <option value="MX">Mexico (MX)</option>
+                                <option value="JP">Japan (JP)</option>
+                                <option value="KR">South Korea (KR)</option>
+                                <option value="DE">Germany (DE)</option>
+                                <option value="VN">Vietnam (VN)</option>
+                                <option value="IN">India (IN)</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        `;
+                    } else {
+                        const placeholder = question.placeholder || 'Enter your answer';
+                        optionsHTML = `
+                            <input type="text" class="text-input" id="q${index}"
+                                   placeholder="${placeholder}"
+                                   onchange="selectAnswer(${index}, this.value)"
+                                   oninput="selectAnswer(${index}, this.value)">
+                        `;
+                    }
                 }
 
                 stepDiv.innerHTML = `
@@ -498,6 +524,17 @@
 
                 container.appendChild(stepDiv);
             });
+        }
+
+        function updateSliderValue(questionIndex, value, unit) {
+            // Update slider display value
+            const sliderValueSpan = document.getElementById(`sliderValue${questionIndex}`);
+            if (sliderValueSpan) {
+                sliderValueSpan.textContent = parseFloat(value).toFixed(1);
+            }
+
+            // Update answer
+            selectAnswer(questionIndex, value + unit);
         }
 
         function selectAnswer(questionIndex, answer) {

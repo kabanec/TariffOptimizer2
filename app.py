@@ -682,6 +682,9 @@ def find_applicable_tariffs():
                 'error': api_response['error']
             }), 500
 
+        # Log the full AvaTax response for debugging
+        logger.info(f"AvaTax API Response: {json.dumps(api_response, indent=2)}")
+
         # Parse duty granularity to find Chapter 98/99 tariffs
         tariffs = []
         lines = api_response.get('lines', [])

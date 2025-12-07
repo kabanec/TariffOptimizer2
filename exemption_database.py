@@ -301,11 +301,15 @@ def check_exemption_applies(exemption, product_info, answers):
 
     # Check US origin/melting conditions
     if conditions.get('melted_and_poured_in_us'):
-        us_melted = any(
-            ('melted' in str(answer).lower() or 'poured' in str(answer).lower() or 'origin' in str(answer).lower())
-            and ('us' in str(answer).lower() or 'united states' in str(answer).lower())
-            for answer in answers.values()
-        )
+        # CRITICAL: Must check that metal country of origin is EXACTLY "US" (not just contains "us")
+        # This prevents false positives like "China" or "Russia" matching "us"
+        us_melted = False
+        for answer in answers.values():
+            answer_str = str(answer).strip().upper()
+            # Check if answer is exactly "US" or "USA" or "UNITED STATES"
+            if answer_str in ['US', 'USA', 'UNITED STATES', 'UNITED STATES OF AMERICA']:
+                us_melted = True
+                break
         if not us_melted:
             return False
 
@@ -360,14 +364,48 @@ def analyze_stacking_with_exemptions(product_info, found_tariffs, questions, ans
         exemption_code = None
         reasoning = f"Applies: {tariff['name']}"
 
-        # Special rule: Section 232 exempts IEEPA Reciprocal
-        if 'ieepa_reciprocal' in tariff['category'].lower() and section_232_applies:
-            excluded = True
-            exemption_code = '9903.01.33'
-            reasoning = "EXEMPT: Section 232 tariffs apply, which automatically exempts IEEPA Reciprocal (9903.01.33)"
+        # CRITICAL FIX: Fentanyl IEEPA NEVER gets exempted - applies to whole product
+        if 'ieepa_fentanyl' in tariff['category'].lower():
+            excluded = False
+            reasoning = f"Applies: {tariff['name']} - Fentanyl IEEPA applies to entire product value regardless of metal composition"
 
-        # Check database exemptions
-        if not excluded:
+        # CRITICAL FIX: Reciprocal IEEPA applies only to non-metal portion
+        # Section 232 does NOT exempt it, but it only applies to the non-metal value
+        # This requires recalculating the amount based on metal percentage
+        elif 'ieepa_reciprocal' in tariff['category'].lower():
+            # Extract metal percentage from answers
+            metal_percentage = 0
+            for answer in answers.values():
+                answer_str = str(answer)
+                if '%' in answer_str:
+                    try:
+                        # Extract percentage value
+                        percent_value = float(answer_str.replace('%', '').strip())
+                        if 0 <= percent_value <= 100:
+                            metal_percentage = max(metal_percentage, percent_value)
+                    except:
+                        pass
+
+            if metal_percentage > 0:
+                # Reciprocal IEEPA applies only to non-metal portion
+                non_metal_percentage = 100 - metal_percentage
+                original_amount = tariff['amount']
+                new_amount = original_amount * (non_metal_percentage / 100.0)
+                tariff['amount'] = new_amount
+                reasoning = f"Applies to NON-METAL portion only: {non_metal_percentage:.1f}% of product value (metal portion: {metal_percentage:.1f}% is subject to Section 232 instead)"
+            else:
+                reasoning = f"Applies: {tariff['name']} - Reciprocal IEEPA on full product value (no metal composition specified)"
+
+            # Check database exemptions
+            for exemption in exemptions:
+                if check_exemption_applies(exemption, product_info, answers):
+                    excluded = True
+                    exemption_code = exemption['code']
+                    reasoning = f"EXEMPT: {exemption['name']} - {exemption['description'][:100]}"
+                    break
+
+        # Check database exemptions for other tariffs
+        elif not excluded:
             for exemption in exemptions:
                 if check_exemption_applies(exemption, product_info, answers):
                     excluded = True
@@ -393,8 +431,23 @@ def analyze_stacking_with_exemptions(product_info, found_tariffs, questions, ans
     # Generate CBP guidance summary
     cbp_guidance = f"Stacking Order: {' → '.join(CBP_STACKING_RULES['order'][:len(found_tariffs)])}. "
     cbp_guidance += f"Applied {len([t for t in stacking_order if t['excluded']])} exemptions. "
-    if section_232_applies:
-        cbp_guidance += "Section 232 exempts IEEPA Reciprocal per 9903.01.33. "
+
+    # Check if Reciprocal IEEPA was adjusted for metal composition
+    reciprocal_adjusted = any(
+        'non-metal portion only' in t['reasoning'].lower()
+        for t in stacking_order
+        if 'ieepa_reciprocal' in t['category'].lower()
+    )
+    if reciprocal_adjusted:
+        cbp_guidance += "IEEPA Reciprocal applies only to non-metal portion of product. "
+
+    # Check if Fentanyl IEEPA applies
+    fentanyl_applies = any(
+        'ieepa_fentanyl' in t['category'].lower() and not t['excluded']
+        for t in stacking_order
+    )
+    if fentanyl_applies:
+        cbp_guidance += "IEEPA Fentanyl applies to entire product value. "
 
     return {
         'stackingOrder': stacking_order,
