@@ -283,35 +283,45 @@ def check_exemption_applies(exemption, product_info, answers):
     conditions = exemption.get('conditions', {})
     origin = product_info.get('origin', '')
 
-    # Check origin country conditions
+    # Check origin country conditions (if specified, origin must match)
     if 'origin_countries' in conditions:
         allowed_origins = conditions['origin_countries']
         if origin not in allowed_origins:
-            return False
+            return False  # Wrong origin country
 
-    # Check USMCA qualification
+    # Check for Section 301 product-specific exemptions (requires explicit "yes")
+    if conditions.get('requires_product_match') or conditions.get('must_match_detailed_description'):
+        # User must explicitly answer "yes" to product match question
+        product_match = any(
+            'yes' in str(answer).lower()
+            for answer in answers.values()
+        )
+        if not product_match:
+            return False  # User said "no" or didn't answer "yes"
+        # If user said yes, continue checking other conditions
+
+    # Check USMCA qualification (requires explicit "yes")
     if conditions.get('requires_usmca'):
         # Look for USMCA answer in user responses
         usmca_qualified = any(
-            'usmca' in str(answer).lower() and 'yes' in str(answer).lower()
+            'yes' in str(answer).lower()
             for answer in answers.values()
         )
         if not usmca_qualified:
-            return False
+            return False  # User didn't qualify for USMCA
 
-    # Check US origin/melting conditions
-    if conditions.get('melted_and_poured_in_us'):
-        # CRITICAL: Must check that metal country of origin is EXACTLY "US" (not just contains "us")
-        # This prevents false positives like "China" or "Russia" matching "us"
-        us_melted = False
+    # Check US origin/melting conditions (requires exact "US" country)
+    if conditions.get('melted_and_poured_in_us') or conditions.get('smelted_and_cast_in_us'):
+        # CRITICAL: Must check that metal country of origin is EXACTLY "US"
+        us_origin = False
         for answer in answers.values():
             answer_str = str(answer).strip().upper()
             # Check if answer is exactly "US" or "USA" or "UNITED STATES"
             if answer_str in ['US', 'USA', 'UNITED STATES', 'UNITED STATES OF AMERICA']:
-                us_melted = True
+                us_origin = True
                 break
-        if not us_melted:
-            return False
+        if not us_origin:
+            return False  # Metal not from US
 
     # Check US content percentage
     if 'us_content_percentage' in conditions:
@@ -320,17 +330,17 @@ def check_exemption_applies(exemption, product_info, answers):
         for answer in answers.values():
             if isinstance(answer, (int, float)):
                 if answer > required_percent:
-                    return True
+                    return True  # Meets US content requirement
             elif '%' in str(answer):
                 try:
                     percent = float(str(answer).replace('%', '').strip())
                     if percent > required_percent:
-                        return True
+                        return True  # Meets US content requirement
                 except:
                     pass
-        return False
+        return False  # Doesn't meet US content requirement
 
-    # If we got here, exemption applies
+    # If all conditions passed (or no conditions specified), exemption applies
     return True
 
 
@@ -364,8 +374,36 @@ def analyze_stacking_with_exemptions(product_info, found_tariffs, questions, ans
         exemption_code = None
         reasoning = f"Applies: {tariff['name']}"
 
+        # CRITICAL FIX: Section 232 tariffs should NOT apply if metal composition is 0%
+        if 'section_232' in tariff['category'].lower():
+            # Extract metal percentage from answers
+            metal_percentage = 0
+            for answer in answers.values():
+                answer_str = str(answer)
+                if '%' in answer_str:
+                    try:
+                        percent_value = float(answer_str.replace('%', '').strip())
+                        if 0 <= percent_value <= 100:
+                            metal_percentage = max(metal_percentage, percent_value)
+                    except:
+                        pass
+
+            if metal_percentage == 0:
+                # Skip this tariff - it shouldn't apply if there's no metal content
+                excluded = True
+                exemption_code = 'N/A'
+                reasoning = f"NOT APPLICABLE: {tariff['name']} - Product has 0% metal composition, Section 232 tariff does not apply"
+            else:
+                # Check exemptions normally for products with metal content
+                for exemption in exemptions:
+                    if check_exemption_applies(exemption, product_info, answers):
+                        excluded = True
+                        exemption_code = exemption['code']
+                        reasoning = f"EXEMPT: {exemption['name']} - {exemption['description'][:100]}"
+                        break
+
         # CRITICAL FIX: Fentanyl IEEPA NEVER gets exempted - applies to whole product
-        if 'ieepa_fentanyl' in tariff['category'].lower():
+        elif 'ieepa_fentanyl' in tariff['category'].lower():
             excluded = False
             reasoning = f"Applies: {tariff['name']} - Fentanyl IEEPA applies to entire product value regardless of metal composition"
 
