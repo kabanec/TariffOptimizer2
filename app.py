@@ -11,6 +11,7 @@ from datetime import timedelta, datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+from exemption_database import analyze_stacking_with_exemptions
 
 # Load environment variables
 load_dotenv()
@@ -871,7 +872,7 @@ Example format:
 @app.route('/api/analyze-stacking', methods=['POST'])
 @login_required
 def analyze_stacking():
-    """Analyze stacking order based on answers using GPT-4 and CBP guidance"""
+    """Analyze stacking order based on answers using exemption database (NOT GPT-4)"""
     try:
         data = request.json
         product_info = data.get('productInfo', {})
@@ -880,93 +881,18 @@ def analyze_stacking():
         answers = data.get('answers', {})
 
         logger.info(f"Analyzing stacking for {len(found_tariffs)} tariffs with {len(answers)} answers")
+        logger.info(f"Product: {product_info}")
+        logger.info(f"Answers: {answers}")
 
-        # Build Q&A summary
-        qa_summary = ""
-        for idx, answer in answers.items():
-            if int(idx) < len(questions):
-                q = questions[int(idx)]
-                qa_summary += f"Q: {q['question']}\nA: {answer}\n\n"
-
-        # Build prompt for GPT-4
-        tariff_summary = "\n".join([
-            f"- {t['name']} ({t['code']}) | Rate: {t['rate']*100}% | Amount: ${t['amount']:.2f} | Category: {t['category']}"
-            for t in found_tariffs
-        ])
-
-        prompt = f"""You are a CBP customs expert. Analyze the proper stacking order for Chapter 99 tariffs and determine which exclusions apply.
-
-Product Information:
-- Base HS Code: {product_info.get('hsCode')}
-- Country of Origin: {product_info.get('origin')}
-- Shipment Value: ${product_info.get('value')}
-
-Tariffs Identified:
-{tariff_summary}
-
-Questions & Answers:
-{qa_summary}
-
-CBP Stacking Guidance:
-1. Section 232 tariffs (Steel/Aluminum/Automotive) stack BEFORE Section 301
-2. IEEPA Reciprocal tariffs stack AFTER Section 232 and Section 301
-3. IEEPA Fentanyl tariffs stack last
-4. Section 232 exempts from IEEPA Reciprocal (9903.01.33)
-5. USMCA exemptions (9903.01.26, 9903.01.27) eliminate Section 232 duties
-6. U.S. content >20% (9903.01.34) eliminates IEEPA Reciprocal
-7. Informational materials (9903.01.21) are exempt from IEEPA
-
-Based on the answers, determine:
-1. Proper stacking order per CBP guidance
-2. Which tariffs are excluded due to exemptions
-3. Reasoning for each decision
-4. Total duties before and after exclusions
-
-Return ONLY a JSON object with this structure:
-
-{{
-  "stackingOrder": [
-    {{
-      "code": "9903.81.87",
-      "name": "Section 232 Steel Tariff",
-      "rate": 0.25,
-      "amount": 2500.00,
-      "excluded": false,
-      "reasoning": "Applies because product is steel from China and does not qualify for USMCA"
-    }},
-    {{
-      "code": "9903.01.25",
-      "name": "IEEPA Reciprocal Tariff",
-      "rate": 0.10,
-      "amount": 1000.00,
-      "excluded": true,
-      "reasoning": "Excluded due to Section 232 exemption (9903.01.33)"
-    }}
-  ],
-  "totalBefore": 7500.00,
-  "totalAfter": 2500.00,
-  "savings": 5000.00,
-  "cbpGuidance": "Per CBP guidance, Section 232 tariffs exempt products from IEEPA Reciprocal tariffs under exclusion code 9903.01.33."
-}}
-
-Return ONLY valid JSON. No markdown, no explanations."""
-
-        client = get_openai_client()
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a CBP customs expert specializing in tariff stacking and Chapter 99 exclusions."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=2000
+        # Use exemption database to analyze stacking
+        result = analyze_stacking_with_exemptions(
+            product_info=product_info,
+            found_tariffs=found_tariffs,
+            questions=questions,
+            answers=answers
         )
 
-        result_json = response.choices[0].message.content.strip()
-        # Remove markdown code blocks if present
-        result_json = result_json.replace('```json', '').replace('```', '').strip()
-
-        result = json.loads(result_json)
+        logger.info(f"Analysis complete: {len(result['stackingOrder'])} tariffs, savings: ${result['savings']:.2f}")
 
         logger.info(f"Stacking analysis complete: ${result['totalBefore']:.2f} -> ${result['totalAfter']:.2f}")
 
