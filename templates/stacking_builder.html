@@ -659,9 +659,17 @@
             html += '<ol class="stacking-order">';
             data.stackingOrder.forEach(item => {
                 const excludedClass = item.excluded ? ' excluded' : '';
+
+                // Build HTS codes display
+                let htsDisplay = `Tariff: ${item.tariffCode}`;
+                if (item.exemptionCode && item.exemptionCode !== 'N/A') {
+                    htsDisplay += ` | Exemption: ${item.exemptionCode}`;
+                }
+
                 html += `
                     <li class="${excludedClass}">
-                        <strong>${item.tariffName}</strong> (${item.tariffCode})<br>
+                        <strong>${item.tariffName}</strong><br>
+                        <small style="color: #6366f1; font-weight: 500;">${htsDisplay}</small><br>
                         <small>Rate: ${item.originalRate} | Original: $${item.originalAmount.toFixed(2)} | Final: $${item.finalAmount.toFixed(2)}</small>
                         ${item.reasoning ? `<div class="reasoning-box">💡 ${item.reasoning}</div>` : ''}
                     </li>
