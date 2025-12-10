@@ -317,8 +317,16 @@
                 const response = await fetch('/api/find-applicable-tariffs', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',  // Include session cookie
                     body: JSON.stringify(productInfo)
                 });
+
+                // Check if we got redirected to login
+                if (response.redirected && response.url.includes('/login')) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/login';
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -390,11 +398,19 @@
                 const response = await fetch('/api/generate-stacking-questions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',  // Include session cookie
                     body: JSON.stringify({
                         productInfo,
                         foundTariffs
                     })
                 });
+
+                // Check if we got redirected to login
+                if (response.redirected && response.url.includes('/login')) {
+                    alert('Your session has expired. Please refresh the page and try again.');
+                    window.location.reload();
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -584,6 +600,7 @@
                 const response = await fetch('/api/analyze-stacking', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',  // Include session cookie
                     body: JSON.stringify({
                         productInfo,
                         foundTariffs,
@@ -591,6 +608,13 @@
                         answers
                     })
                 });
+
+                // Check if we got redirected to login
+                if (response.redirected && response.url.includes('/login')) {
+                    alert('Your session has expired. Please refresh the page and try again.');
+                    window.location.reload();
+                    return;
+                }
 
                 const data = await response.json();
 
