@@ -3,6 +3,9 @@
 ## Overview
 This document formalizes the complete decision tree for Chapter 98/99 tariff stacking based on CBP regulations.
 
+**Last Updated:** December 2025
+**Source:** CBP IEEPA FAQ - https://www.cbp.gov/trade/programs-administration/trade-remedies/IEEPA-FAQ
+
 ---
 
 ## 1. STACKING ORDER (CBP Guidance)
@@ -10,8 +13,19 @@ This document formalizes the complete decision tree for Chapter 98/99 tariff sta
 Per CBP, tariffs stack in this order:
 1. **Section 232** (Steel/Aluminum/Automotive) - FIRST
 2. **Section 301** (China tariffs) - SECOND
-3. **IEEPA Reciprocal** (99030125) - THIRD
-4. **IEEPA Fentanyl** (99030136) - FOURTH (last)
+3. **IEEPA Country-Specific** (Canada/Mexico/China/Brazil/India) - THIRD
+4. **IEEPA Reciprocal** (9903.01.25) - FOURTH
+5. **IEEPA Fentanyl** (9903.01.36) - FIFTH (last)
+
+**CRITICAL UPDATE:** As of 2025, IEEPA tariffs have expanded significantly:
+- Canada: 25% (effective March 4, 2025) - 9903.01.01-9903.01.15
+- Mexico: 25% (effective March 4, 2025) - 9903.01.01-9903.01.05
+- China: 25% (effective February 4, 2025) - 9903.01.20, 9903.01.24
+- Brazil: Specific rates (effective August 6, 2025)
+- India: Specific rates (effective August 27, 2025)
+- Reciprocal: 10% baseline (effective April 5, 2025) - 9903.01.25
+  - China reciprocal escalated to 84% after April 9, 2025 (9903.01.63)
+  - China reciprocal was 125% during May 10-13, 2025
 
 ---
 
@@ -139,49 +153,156 @@ ELSE:
 
 ## 4. IEEPA TARIFFS
 
-### 4.1 IEEPA Reciprocal (HS Code: 99030125)
+**MAJOR UPDATE (2025):** IEEPA has expanded to multiple countries with various rates and exemption structures.
 
-**Rate:** 10% (NOT 9.6% - need to verify AvaTax response)
+### 4.1 IEEPA Country-Specific Tariffs
+
+#### 4.1.1 Canada IEEPA (9903.01.01 - 9903.01.15)
+
+**Rate:** 25% additional duty (effective March 4, 2025)
+
+**Decision Tree:**
+
+```
+IF origin == CA:
+
+    ASK: "Does product qualify for USMCA?"
+    IF yes:
+        → EXEMPT (9903.01.26) - effective March 7, 2025 onward
+        NOTE: Goods entered 3/4-3/6/25 remain subject to tariffs
+              Refunds available via 1520(d) claim within one year
+
+    ELSE IF product is energy or energy resources:
+        → APPLY 10% rate (9903.01.13)
+
+    ELSE IF product properly classified under Chapter 98:
+        → EXEMPT (9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80, 9813)
+
+    ELSE:
+        → APPLY 25% Canada IEEPA
+
+ELSE:
+    → NOT APPLICABLE (not from Canada)
+```
+
+#### 4.1.2 Mexico IEEPA (9903.01.01 - 9903.01.05)
+
+**Rate:** 25% additional duty (effective March 4, 2025)
+
+**Decision Tree:**
+
+```
+IF origin == MX:
+
+    ASK: "Does product qualify for USMCA?"
+    IF yes:
+        → EXEMPT (9903.01.27) - effective March 7, 2025 onward
+        NOTE: Goods entered 3/4-3/6/25 remain subject to tariffs
+              Refunds available via 1520(d) claim within one year
+
+    ELSE IF product properly classified under Chapter 98:
+        → EXEMPT (9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80, 9813)
+
+    ELSE:
+        → APPLY 25% Mexico IEEPA
+
+ELSE:
+    → NOT APPLICABLE (not from Mexico)
+```
+
+#### 4.1.3 China IEEPA (9903.01.20, 9903.01.24)
+
+**Rate:** 25% additional duty (effective February 4, 2025)
 
 **Decision Tree:**
 
 ```
 IF origin == CN OR origin == HK OR origin == MO:
 
-    # CRITICAL: Reciprocal IEEPA applies to NON-METAL portion only
+    IF product properly classified under Chapter 98:
+        → EXEMPT (9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80, 9813)
 
-    CALCULATE total_metal_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
-    CALCULATE non_metal_pct = 100% - total_metal_pct
-
-    IF non_metal_pct > 0:
-        ASK: "Percentage of U.S. content by value in product?"
-        IF us_content > 20%:
-            → EXEMPT on non-metal portion (9903.01.34)
-        ELSE:
-            ASK: "Is product informational materials (books, films, CDs, artwork)?"
-            IF yes:
-                → EXEMPT (9903.01.21)
-            ELSE:
-                → APPLY IEEPA Reciprocal on (non_metal_pct% of value)
     ELSE:
-        → NOT APPLICABLE (100% metal content, covered by Section 232)
+        → APPLY 25% China IEEPA
 
 ELSE:
     → NOT APPLICABLE (not from China/HK/Macau)
 ```
 
-**Required Data:**
-- `us_content_percentage`: 0-100%
-- `is_informational_materials`: boolean
+### 4.2 IEEPA Reciprocal (HS Code: 9903.01.25, 9903.01.63)
 
-**CRITICAL RULE:**
-- IEEPA Reciprocal applies ONLY to the non-metal portion of product value
-- Metal portion is covered by Section 232
-- Section 232 does NOT exempt IEEPA, but they apply to different portions
+**Rates:**
+- Baseline: 10% (9903.01.25) - effective April 5, 2025
+- China escalation: 84% (9903.01.63) - effective April 9, 2025
+- China peak: 125% (9903.01.63) - May 10-13, 2025 only
+- China return: 10% (9903.01.25) - effective May 14, 2025
 
----
+**Decision Tree:**
 
-### 4.2 IEEPA Fentanyl (HS Code: 99030136)
+```
+IF product subject to reciprocal tariffs:
+
+    # Check Chapter 98 exemptions
+    IF product properly classified under Chapter 98:
+        → EXEMPT (9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80, 9813)
+
+    # Check preferential trade programs
+    ELSE IF eligible under preferential trade program (General Note 3(c)(i)):
+        # AGOA (9819), CBTPA/Haiti HOPE (9820), FTAs (9822)
+        IF properly claimed:
+            → EXEMPT
+
+    # Check Annex II commodities
+    ELSE IF product identified in Annex II:
+        → EXEMPT (9903.01.32) - applies to articles of any country
+
+    # Check Section 232 metals exemption
+    ELSE IF product subject to Section 232 duties:
+        → EXEMPT on metal portion (9903.01.33)
+        NOTE: Non-metal portion may still be subject to reciprocal tariffs as of June 4, 2025
+
+    # CRITICAL: Metal vs Non-Metal Split (as of June 4, 2025)
+    CALCULATE total_metal_pct = steel_pct + aluminum_pct + copper_pct
+    CALCULATE non_metal_pct = 100% - total_metal_pct
+
+    IF non_metal_pct > 0:
+        # Check U.S. content exemption
+        ASK: "Percentage of U.S.-originating content by value?"
+        IF us_content >= 20%:
+            → EXEMPT on U.S. portion (9903.01.34)
+            → APPLY reciprocal rate on non-U.S. portion
+            NOTE: Requires split entry summary lines
+            NOTE: U.S. content determined by physical characteristics under 19 U.S.C. § 1401a
+
+        ELSE:
+            ASK: "Is product informational materials (publications, films, recordings, artwork)?"
+            IF yes:
+                → EXEMPT (9903.01.22, 9903.01.12, 9903.01.03, 9903.01.31)
+                NOTE: Includes HTSUS 8523.80.10, 9701-9705
+
+            ELSE:
+                → APPLY reciprocal rate on (non_metal_pct% of value)
+
+    ELSE:
+        → NOT APPLICABLE (100% metal content, covered by Section 232)
+
+    # In-transit provisions (vessel mode only, before 6/16/25)
+    IF vessel mode AND before 6/16/25:
+        → EXEMPT (9903.01.28)
+
+ELSE:
+    → NOT APPLICABLE
+```
+
+**CRITICAL RULES:**
+- Metal portion: Subject to Section 232, exempt from reciprocal under 9903.01.33
+- Non-metal portion: Subject to IEEPA reciprocal tariffs (as of June 4, 2025)
+- **Must report on separate entry summary lines** for metal vs non-metal
+- U.S. content must be ≥20% for exemption (9903.01.34)
+- U.S. content determined by physical characteristics only
+- Split entry required: one line for U.S. content, one for non-U.S. content
+
+### 4.3 IEEPA Fentanyl (HS Code: 9903.01.36)
 
 **Rate:** 15% (or other rate specified by proclamation)
 
@@ -202,7 +323,7 @@ ELSE:
     → NOT APPLICABLE (not from China/HK/Macau)
 ```
 
-**Required Data:** None (always applies if tariff is present)
+**Required Data:** None (always applies if tariff is present, no exemptions)
 
 ---
 
@@ -448,8 +569,76 @@ duty = shipment_value × rate  # Always 100% of value
 ---
 
 ## References
-- CBP Section 232 FAQs
-- CBP Section 301 Trade Remedies
-- USTR Federal Register Notices
-- Presidential Proclamations (IEEPA)
+
+### Official CBP Resources
+- **CBP IEEPA FAQ** (Primary Source): https://www.cbp.gov/trade/programs-administration/trade-remedies/IEEPA-FAQ
+  - Last updated: December 2025
+  - Covers Canada, Mexico, China, Brazil, India IEEPA tariffs
+  - Includes exemption codes, effective dates, and implementation details
+
+- **CBP Section 232 FAQs**: https://www.cbp.gov/trade/remedies/232-tariffs
+  - Steel and aluminum tariff guidance
+  - Exemption codes and requirements
+
+- **CBP Section 301 Trade Remedies**: https://www.cbp.gov/trade/remedies/301-certain-products-china
+  - China tariff lists and rates
+  - USTR product exclusions
+
+### Federal Regulations
+- **19 U.S.C. § 1401a**: Customs value rules (for U.S. content determination)
+- **19 CFR 141.57**: Split shipments requirements
+- **19 CFR 141.68**: Entry date determination for duty rates
+- **General Note 3(c)(i)**: Preferential trade programs (AGOA, CBTPA, FTAs)
+
+### Proclamations and Federal Register
+- Presidential Proclamations establishing IEEPA tariffs (2025)
+- USTR Federal Register Notices for Section 301 exclusions
+- Commerce Department Federal Register Notices for Section 232 exclusions
+
+### Entry Summary Requirements
+- **Chapter 98 Exceptions**: 9802.00.40, 9802.00.50, 9802.00.60, 9802.00.80, 9813
+- **Split Entry Lines**: Required for metal vs non-metal portions
+- **Reconciliation**: FTA reconciliation only method for flagged entries
+
+### Key Exemption Codes Reference
+
+#### USMCA (Canada/Mexico)
+- 9903.01.26: Canadian goods (USMCA-qualified)
+- 9903.01.27: Mexican goods (USMCA-qualified)
+
+#### Section 232
+- 9903.81.92: Steel melted and poured in USA
+- 9903.01.94: Aluminum smelted in USA
+
+#### Section 301
+- 9903.88.69: USTR product-specific exclusions (164 exclusions)
+- 9903.88.70: Manufacturing equipment exclusions (14 exclusions)
+
+#### IEEPA Reciprocal
+- 9903.01.25: Reciprocal tariff baseline (10%)
+- 9903.01.63: China escalation (84% or 125%)
+- 9903.01.28: In-transit exemption (vessel mode, before 6/16/25)
+- 9903.01.30-9903.01.33: Various exclusions
+- 9903.01.32: Annex II commodities
+- 9903.01.33: Section 232 products (metal portion)
+- 9903.01.34: U.S. content ≥20%
+
+#### IEEPA Informational Materials
+- 9903.01.21, 9903.01.22, 9903.01.12, 9903.01.03, 9903.01.31
+- Covers publications, films, recordings, artwork (HTSUS 8523.80.10, 9701-9705)
+
+#### Chapter 98 General Exemptions
+- 9802.00.40, 9802.00.50, 9802.00.60: Repairs/alterations
+- 9802.00.80: Articles assembled abroad
+- 9813: Temporary Importation Under Bond (TIB)
+
+### Implementation Status
+- ✅ Research document completed (December 2025)
+- ✅ Deterministic stacking algorithm implemented (stacking_logic.py)
+- ✅ GPT-4 eliminated from question generation
+- ✅ GPT-4 eliminated from stacking analysis
+- ⚠️ IEEPA country-specific tariffs (CA/MX/CN) not yet fully implemented
+- ⚠️ IEEPA reciprocal 84%/125% rate escalation logic not yet implemented
+- ⚠️ Annex II commodity checking not yet implemented
+- ⚠️ Preferential trade program checking not yet implemented
 - HTSUS Chapter 99 Notes
