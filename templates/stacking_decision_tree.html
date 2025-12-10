@@ -256,6 +256,7 @@
 
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
+            <button class="nav-tab" onclick="showTab('all-codes')">All HTS Codes</button>
             <button class="nav-tab" onclick="showTab('section232-steel')">Section 232 Steel</button>
             <button class="nav-tab" onclick="showTab('section232-aluminum')">Section 232 Aluminum</button>
             <button class="nav-tab" onclick="showTab('section301')">Section 301</button>
@@ -270,8 +271,16 @@
                     <h3>🔢 CBP Stacking Order (Critical!)</h3>
                     <p>Tariffs must be applied in this order:</p>
                     <ol>
-                        <li><strong>Section 232</strong> (Steel/Aluminum/Automotive) - FIRST</li>
-                        <li><strong>Section 301</strong> (China tariffs) - SECOND</li>
+                        <li><strong>Section 232</strong> - FIRST
+                            <ul style="margin-left: 20px; margin-top: 5px; font-size: 14px;">
+                                <li>✅ Steel (9903.81.xx) - 25% ACTIVE</li>
+                                <li>✅ Aluminum (9903.85.xx) - 10% ACTIVE</li>
+                                <li>⏳ Automotive/Trucks/Buses (9903.02.01) - 25% PROPOSED (not yet active)</li>
+                                <li>❌ Copper - NO Section 232 tariff (used in IEEPA calc only)</li>
+                                <li>❌ Lumber - NO Section 232 tariff (used in IEEPA calc only)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Section 301</strong> (China tariffs 9903.88.xx) - SECOND</li>
                         <li><strong>IEEPA Reciprocal</strong> (9903.01.25) - THIRD</li>
                         <li><strong>IEEPA Fentanyl</strong> (9903.01.36) - FOURTH (last)</li>
                     </ol>
