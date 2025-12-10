@@ -840,6 +840,12 @@ def analyze_stacking_endpoint():
         logger.info(f"Product: {product_info}")
         logger.info(f"Answers: {answers}")
 
+        # Normalize product_info - frontend sends 'origin', backend expects 'origin_country'
+        if 'origin' in product_info and 'origin_country' not in product_info:
+            product_info['origin_country'] = product_info['origin']
+        if 'hsCode' in product_info and 'hs_code' not in product_info:
+            product_info['hs_code'] = product_info['hsCode']
+
         # Convert frontend answers to expected format
         # Frontend sends: {"0": "25%", "1": "CN", ...}
         # We need: {"steel_percentage": 25, "steel_origin_country": "CN", ...}
