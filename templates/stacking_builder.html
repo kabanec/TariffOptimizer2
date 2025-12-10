@@ -484,6 +484,9 @@
                     const unit = question.unit || '';
                     const placeholder = question.placeholder || `Enter value (${min}-${max})`;
 
+                    // Auto-select 0% as the default answer (valid for Section 232)
+                    selectAnswer(index, `${min}${unit}`);
+
                     // Use slider for percentage/number questions
                     optionsHTML = `
                         <div style="margin: 15px 0;">
@@ -499,18 +502,25 @@
                     // Check if this is a country code question - use dropdown
                     if (question.placeholder && (question.placeholder.includes('US') || question.placeholder.includes('CN') ||
                         question.question.toLowerCase().includes('country') || question.question.toLowerCase().includes('origin'))) {
+
+                        // Default to product origin for Section 232 metal origin questions
+                        const defaultCountry = productInfo.origin || '';
+                        if (defaultCountry) {
+                            selectAnswer(index, defaultCountry);
+                        }
+
                         optionsHTML = `
                             <select class="text-input" id="q${index}" onchange="selectAnswer(${index}, this.value)">
                                 <option value="">-- Select Country --</option>
-                                <option value="US">United States (US)</option>
-                                <option value="CN">China (CN)</option>
-                                <option value="CA">Canada (CA)</option>
-                                <option value="MX">Mexico (MX)</option>
-                                <option value="JP">Japan (JP)</option>
-                                <option value="KR">South Korea (KR)</option>
-                                <option value="DE">Germany (DE)</option>
-                                <option value="VN">Vietnam (VN)</option>
-                                <option value="IN">India (IN)</option>
+                                <option value="US" ${defaultCountry === 'US' ? 'selected' : ''}>United States (US)</option>
+                                <option value="CN" ${defaultCountry === 'CN' ? 'selected' : ''}>China (CN)</option>
+                                <option value="CA" ${defaultCountry === 'CA' ? 'selected' : ''}>Canada (CA)</option>
+                                <option value="MX" ${defaultCountry === 'MX' ? 'selected' : ''}>Mexico (MX)</option>
+                                <option value="JP" ${defaultCountry === 'JP' ? 'selected' : ''}>Japan (JP)</option>
+                                <option value="KR" ${defaultCountry === 'KR' ? 'selected' : ''}>South Korea (KR)</option>
+                                <option value="DE" ${defaultCountry === 'DE' ? 'selected' : ''}>Germany (DE)</option>
+                                <option value="VN" ${defaultCountry === 'VN' ? 'selected' : ''}>Vietnam (VN)</option>
+                                <option value="IN" ${defaultCountry === 'IN' ? 'selected' : ''}>India (IN)</option>
                                 <option value="OTHER">Other</option>
                             </select>
                         `;
@@ -644,8 +654,8 @@
                 const excludedClass = item.excluded ? ' excluded' : '';
                 html += `
                     <li class="${excludedClass}">
-                        <strong>${item.name}</strong> (${item.code})<br>
-                        <small>Rate: ${(item.rate * 100).toFixed(2)}% | Amount: $${item.amount.toFixed(2)}</small>
+                        <strong>${item.tariffName}</strong> (${item.tariffCode})<br>
+                        <small>Rate: ${item.originalRate} | Original: $${item.originalAmount.toFixed(2)} | Final: $${item.finalAmount.toFixed(2)}</small>
                         ${item.reasoning ? `<div class="reasoning-box">💡 ${item.reasoning}</div>` : ''}
                     </li>
                 `;
