@@ -768,11 +768,27 @@ def generate_stacking_questions():
         # Convert to format expected by frontend
         formatted_questions = []
         for q in questions:
+            # Derive category from question ID for display purposes
+            question_id = q['id']
+            if 'steel' in question_id:
+                category = 'Section 232 Steel'
+            elif 'aluminum' in question_id:
+                category = 'Section 232 Aluminum'
+            elif 'ustr' in question_id or 'section_301' in question_id:
+                category = 'Section 301'
+            elif 'us_content' in question_id or 'informational' in question_id:
+                category = 'IEEPA Reciprocal'
+            elif 'usmca' in question_id:
+                category = 'USMCA'
+            else:
+                category = 'Product Details'
+
             formatted_q = {
                 'question': q['text'],
                 'type': q['type'],
                 'help': q.get('help', ''),
-                'required': q.get('required', True)
+                'required': q.get('required', True),
+                'category': category
             }
 
             # Add type-specific fields
