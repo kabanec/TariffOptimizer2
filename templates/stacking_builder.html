@@ -572,15 +572,17 @@
                 nextBtn.disabled = false;
             }
 
-            // Highlight selected option
+            // Highlight selected option (only if step exists in DOM)
             const stepDiv = document.getElementById(`step${3 + questionIndex}`);
-            const options = stepDiv.querySelectorAll('.answer-option');
-            options.forEach(opt => {
-                opt.classList.remove('selected');
-                if (opt.querySelector('input')?.value === answer) {
-                    opt.classList.add('selected');
-                }
-            });
+            if (stepDiv) {
+                const options = stepDiv.querySelectorAll('.answer-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if (opt.querySelector('input')?.value === answer) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
         }
 
         function nextQuestion(questionIndex) {
