@@ -12,13 +12,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 # CBP Stacking Order (CRITICAL - do not change)
+# Per CSMS #65829726: "301, Fentanyl, Reciprocal, 232/201"
+# Updated August 2025 to match CBP bulletin guidance
 STACKING_ORDER = {
-    'section_232_steel': 1,
-    'section_232_aluminum': 2,
-    'section_232_automotive': 3,
-    'section_301': 4,
-    'ieepa_reciprocal': 5,
-    'ieepa_fentanyl': 6
+    'section_301': 1,              # FIRST: Section 301 (China tariffs)
+    'ieepa_fentanyl': 2,           # SECOND: IEEPA Fentanyl
+    'ieepa_reciprocal': 3,         # THIRD: IEEPA Reciprocal
+    'section_232_steel': 4,        # FOURTH: Section 232 Steel
+    'section_232_aluminum': 5,     # FIFTH: Section 232 Aluminum
+    'section_232_automotive': 6    # SIXTH: Section 232 Automotive (proposed)
 }
 
 
@@ -171,31 +173,47 @@ def get_required_questions(detected_tariffs, origin_country):
         })
         question_index += 1
 
-    # IEEPA Reciprocal Questions (only for China/Hong Kong/Macau)
-    if 'ieepa_reciprocal' in categories and origin_country in ['CN', 'HK', 'MO']:
-        questions.append({
-            'id': 'us_content_percentage',
-            'index': question_index,
-            'text': 'What percentage of the product value is U.S. content?',
-            'type': 'slider',
-            'min': 0,
-            'max': 100,
-            'unit': '%',
-            'required': True,
-            'help': 'Products with >20% U.S. content are exempt from IEEPA Reciprocal tariff (exemption code: 9903.01.34)'
-        })
-        question_index += 1
+    # IEEPA Reciprocal Questions
+    # Per CSMS #65829726: Applies to all countries (effective Aug 7, 2025)
+    # China/HK/MO continue at 10% under 9903.01.25
+    if 'ieepa_reciprocal' in categories:
+        # Skip Column 2 countries - they're automatically exempt
+        column_2_countries = ['BY', 'CU', 'KP', 'RU']
+        if origin_country not in column_2_countries:
+            questions.append({
+                'id': 'is_humanitarian_donation',
+                'index': question_index,
+                'text': 'Is this a humanitarian donation (food, clothing, medicine)?',
+                'type': 'boolean',
+                'options': ['Yes', 'No'],
+                'required': True,
+                'help': 'Humanitarian donations are exempt from IEEPA Reciprocal tariff (exemption code: 9903.01.30)'
+            })
+            question_index += 1
 
-        questions.append({
-            'id': 'is_informational_materials',
-            'index': question_index,
-            'text': 'Is this product informational materials (books, films, CDs, artwork)?',
-            'type': 'boolean',
-            'options': ['Yes', 'No'],
-            'required': True,
-            'help': 'Informational materials are exempt from IEEPA Reciprocal tariff (exemption code: 9903.01.21)'
-        })
-        question_index += 1
+            questions.append({
+                'id': 'us_content_percentage',
+                'index': question_index,
+                'text': 'What percentage of the product value is U.S. content?',
+                'type': 'slider',
+                'min': 0,
+                'max': 100,
+                'unit': '%',
+                'required': True,
+                'help': 'Products with >20% U.S. content are exempt from IEEPA Reciprocal tariff (exemption code: 9903.01.34)'
+            })
+            question_index += 1
+
+            questions.append({
+                'id': 'is_informational_materials',
+                'index': question_index,
+                'text': 'Is this product informational materials (books, films, CDs, artwork)?',
+                'type': 'boolean',
+                'options': ['Yes', 'No'],
+                'required': True,
+                'help': 'Informational materials are exempt from IEEPA Reciprocal tariff (exemption code: 9903.01.21)'
+            })
+            question_index += 1
 
     # IEEPA Fentanyl - NO QUESTIONS (always applies, no exemptions)
 
@@ -409,14 +427,41 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
         'final_amount': tariff['amount']
     }
 
-    # Only applies to CN/HK/MO
+    # Check Column 2 rate countries exemption (9903.01.29)
+    # Belarus, Cuba, North Korea, Russia
     origin = product_info['origin_country']
-    if origin not in ['CN', 'HK', 'MO']:
+    column_2_countries = ['BY', 'CU', 'KP', 'RU']
+    if origin in column_2_countries:
         result['excluded'] = True
-        result['exemption_code'] = 'N/A'
-        result['reasoning'] = f'NOT APPLICABLE: Product not from China/Hong Kong/Macau (origin: {origin})'
+        result['exemption_code'] = '9903.01.29'
+        result['reasoning'] = f'EXEMPT: Product from Column 2 rate country ({origin})'
         result['final_amount'] = 0
         return result
+
+    # Check humanitarian donations exemption (9903.01.30)
+    is_humanitarian = answers.get('is_humanitarian_donation', False)
+    if is_humanitarian:
+        result['excluded'] = True
+        result['exemption_code'] = '9903.01.30'
+        result['reasoning'] = 'EXEMPT: Humanitarian donation (food, clothing, medicine)'
+        result['final_amount'] = 0
+        return result
+
+    # EU Special Calculation (Per CSMS #65829726)
+    # TODO: Implement EU 15% threshold logic
+    # - If Column 1 rate >= 15%: reciprocal rate = 0%
+    # - If Column 1 rate < 15%: reciprocal rate = 15% - Column 1 rate
+    # Requires Column 1 duty rate data (not currently available in product_info)
+    eu_countries = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+                    'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
+                    'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']
+    if origin in eu_countries:
+        # For now, flag as needing Column 1 rate data
+        # Future implementation will calculate adjusted rate
+        pass
+
+    # Only applies to CN/HK/MO at 10% (and other countries per bulletin)
+    # Note: Per bulletin, China continues at 10% under 9903.01.25
 
     # Calculate total metal percentage
     steel_pct = answers.get('steel_percentage', 0)
