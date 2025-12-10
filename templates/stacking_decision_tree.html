@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tariff Stacking Decision Tree - TariffOptimizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .content {
+            padding: 30px;
+            min-height: 600px;
+        }
+
+        .tree-section {
+            display: none;
+        }
+
+        .tree-section.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tree-node {
+            margin: 15px 0;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .tree-node.decision {
+            border-left-color: #ffc107;
+            background: #fff9e6;
+        }
+
+        .tree-node.action {
+            border-left-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        .tree-node.exempt {
+            border-left-color: #17a2b8;
+            background: #e0f7fa;
+        }
+
+        .tree-node.applies {
+            border-left-color: #dc3545;
+            background: #ffebee;
+        }
+
+        .tree-node.not-applicable {
+            border-left-color: #6c757d;
+            background: #f1f3f5;
+        }
+
+        .node-label {
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .node-content {
+            font-size: 14px;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        .node-code {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 5px 5px 5px 0;
+        }
+
+        .indent-1 { margin-left: 30px; }
+        .indent-2 { margin-left: 60px; }
+        .indent-3 { margin-left: 90px; }
+        .indent-4 { margin-left: 120px; }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .legend-color.decision { background: #fff9e6; border: 3px solid #ffc107; }
+        .legend-color.action { background: #e8f5e9; border: 3px solid #28a745; }
+        .legend-color.exempt { background: #e0f7fa; border: 3px solid #17a2b8; }
+        .legend-color.applies { background: #ffebee; border: 3px solid #dc3545; }
+        .legend-color.not-applicable { background: #f1f3f5; border: 3px solid #6c757d; }
+
+        .stacking-order {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .stacking-order h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .stacking-order ol {
+            margin-left: 20px;
+            line-height: 2;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .info-box strong {
+            color: #1976d2;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: #764ba2;
+        }
+
+        code {
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .formula {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 CBP Tariff Stacking Decision Tree</h1>
+            <p>Complete deterministic logic for Chapter 98/99 punitive tariffs</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
+            <button class="nav-tab" onclick="showTab('section232-steel')">Section 232 Steel</button>
+            <button class="nav-tab" onclick="showTab('section232-aluminum')">Section 232 Aluminum</button>
+            <button class="nav-tab" onclick="showTab('section301')">Section 301</button>
+            <button class="nav-tab" onclick="showTab('ieepa-reciprocal')">IEEPA Reciprocal</button>
+            <button class="nav-tab" onclick="showTab('ieepa-fentanyl')">IEEPA Fentanyl</button>
+        </div>
+
+        <div class="content">
+            <!-- Overview Tab -->
+            <div id="overview" class="tree-section active">
+                <div class="stacking-order">
+                    <h3>🔢 CBP Stacking Order (Critical!)</h3>
+                    <p>Tariffs must be applied in this order:</p>
+                    <ol>
+                        <li><strong>Section 232</strong> (Steel/Aluminum/Automotive) - FIRST</li>
+                        <li><strong>Section 301</strong> (China tariffs) - SECOND</li>
+                        <li><strong>IEEPA Reciprocal</strong> (9903.01.25) - THIRD</li>
+                        <li><strong>IEEPA Fentanyl</strong> (9903.01.36) - FOURTH (last)</li>
+                    </ol>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color decision"></div>
+                        <span><strong>Decision Point</strong> - Check condition or ask question</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color action"></div>
+                        <span><strong>Action</strong> - Calculate or check value</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color exempt"></div>
+                        <span><strong>EXEMPT</strong> - Tariff does not apply (exclusion)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color applies"></div>
+                        <span><strong>APPLIES</strong> - Tariff applies to product</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color not-applicable"></div>
+                        <span><strong>NOT APPLICABLE</strong> - Tariff doesn't apply (0% composition or wrong origin)</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>ℹ️ How to Read This Tree:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li>Yellow boxes = Decision points (IF statements)</li>
+                        <li>Green boxes = Actions (CALCULATE, ASK)</li>
+                        <li>Blue boxes = Exempt outcomes</li>
+                        <li>Red boxes = Apply outcomes</li>
+                        <li>Gray boxes = Not applicable outcomes</li>
+                        <li>Indentation shows nested logic</li>
+                    </ul>
+                </div>
+
+                <h2 style="margin: 30px 0 20px 0;">Key Concepts</h2>
+
+                <div class="tree-node action">
+                    <div class="node-label">Metal vs Non-Metal Split</div>
+                    <div class="node-content">
+                        <p>For products with mixed composition:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li><strong>Metal Portion:</strong> Subject to Section 232, exempt from IEEPA Reciprocal</li>
+                            <li><strong>Non-Metal Portion:</strong> Subject to IEEPA Reciprocal (as of June 4, 2025)</li>
+                            <li><strong>Entry Requirement:</strong> Must report on separate entry summary lines</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tree-node action">
+                    <div class="node-label">Percentage-Based Calculations</div>
+                    <div class="node-content">
+                        <p>Some tariffs apply only to a portion of product value:</p>
+                        <div class="formula">
+                            Section 232 Steel: duty = value × (steel_pct / 100) × rate<br>
+                            IEEPA Reciprocal: duty = value × (non_metal_pct / 100) × rate
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node action">
+                    <div class="node-label">US Content Rules</div>
+                    <div class="node-content">
+                        <p>For IEEPA Reciprocal exemption:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>Must have ≥20% U.S.-originating content</li>
+                            <li>Determined by physical characteristics only (19 U.S.C. § 1401a)</li>
+                            <li>Requires split entry: U.S. portion vs non-U.S. portion</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <a href="/stacking-builder" class="back-link">← Back to Stacking Builder</a>
+            </div>
+
+            <!-- Section 232 Steel Tab -->
+            <div id="section232-steel" class="tree-section">
+                <h2>Section 232 Steel Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HS Codes:</strong> 9903.81.04, 9903.81.06, 9903.81.11, 9903.81.12, 9903.81.19, 9903.81.86, 9903.81.87<br>
+                    <strong>Rate:</strong> 25%<br>
+                    <strong>Applies to:</strong> Steel portion of product value only
+                </p>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF product contains steel</div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">ASK: "What percentage of the product is steel?"</div>
+                    <div class="node-content">User provides: <code>steel_pct</code> (0-100%)</div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF steel_pct == 0</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-2">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product has 0% steel composition<br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">ELSE IF origin == CA OR origin == MX</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Does product qualify for USMCA?"</div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-3">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        USMCA-qualified product from CA/MX<br>
+                        <span class="node-code">9903.01.26 (Canada)</span>
+                        <span class="node-code">9903.01.27 (Mexico)</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node applies indent-3">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Product from CA/MX does not qualify for USMCA<br>
+                        <div class="formula">
+                            final_amount = value × (steel_pct / 100) × 0.25
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">ELSE (other origins)</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Country of origin for steel?"</div>
+                    <div class="node-content">User provides: <code>steel_origin</code></div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF steel_origin == US</div>
+                </div>
+
+                <div class="tree-node action indent-3">
+                    <div class="node-label">ASK: "Was steel melted AND poured in the United States?"</div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-4">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        Steel melted and poured in USA<br>
+                        <span class="node-code">9903.81.92</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node applies indent-4">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Steel from US but not melted/poured in US<br>
+                        <div class="formula">
+                            final_amount = value × (steel_pct / 100) × 0.25
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">ELSE (steel_origin != US)</div>
+                </div>
+
+                <div class="tree-node applies indent-3">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Steel from non-US country<br>
+                        <div class="formula">
+                            final_amount = value × (steel_pct / 100) × 0.25
+                        </div>
+                        Example: $100 product with 60% steel from China<br>
+                        → $100 × 0.60 × 0.25 = <strong>$15.00</strong>
+                    </div>
+                </div>
+
+                <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+
+            <!-- Section 232 Aluminum Tab -->
+            <div id="section232-aluminum" class="tree-section">
+                <h2>Section 232 Aluminum Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HS Codes:</strong> 9903.85.xx<br>
+                    <strong>Rate:</strong> 10%<br>
+                    <strong>Applies to:</strong> Aluminum portion of product value only
+                </p>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF product contains aluminum</div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">ASK: "What percentage of the product is aluminum?"</div>
+                    <div class="node-content">User provides: <code>aluminum_pct</code> (0-100%)</div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF aluminum_pct == 0</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-2">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product has 0% aluminum composition<br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">ELSE IF origin == CA OR origin == MX</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Does product qualify for USMCA?"</div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-3">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        USMCA-qualified product from CA/MX<br>
+                        <span class="node-code">9903.01.26 (Canada)</span>
+                        <span class="node-code">9903.01.27 (Mexico)</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">ELSE (other origins)</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Country of origin for aluminum?"</div>
+                    <div class="node-content">User provides: <code>aluminum_origin</code></div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF aluminum_origin == US</div>
+                </div>
+
+                <div class="tree-node action indent-3">
+                    <div class="node-label">ASK: "Was aluminum smelted AND cast in the United States?"</div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-4">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        Aluminum smelted and cast in USA<br>
+                        <span class="node-code">US_ORIGIN</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node applies indent-4">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Aluminum from US but not smelted/cast in US<br>
+                        <div class="formula">
+                            final_amount = value × (aluminum_pct / 100) × 0.10
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">ELSE (aluminum_origin != US)</div>
+                </div>
+
+                <div class="tree-node applies indent-3">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Aluminum from non-US country<br>
+                        <div class="formula">
+                            final_amount = value × (aluminum_pct / 100) × 0.10
+                        </div>
+                        Example: $100 product with 40% aluminum from China<br>
+                        → $100 × 0.40 × 0.10 = <strong>$4.00</strong>
+                    </div>
+                </div>
+
+                <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+
+            <!-- Section 301 Tab -->
+            <div id="section301" class="tree-section">
+                <h2>Section 301 Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HS Codes:</strong> 9903.88.xx<br>
+                    <strong>Rates:</strong> 7.5%, 25% (varies by list)<br>
+                    <strong>Applies to:</strong> 100% of product value
+                </p>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF origin == CN OR origin == HK OR origin == MO</div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">ASK: "Does product match one of the 164 USTR product-specific exclusions?"</div>
+                    <div class="node-content">Check USTR Federal Register notices</div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-2">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        Product matches USTR product-specific exclusion<br>
+                        <span class="node-code">9903.88.69</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Is product classified as manufacturing equipment under 14 USTR exclusions?"</div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-3">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        Product classified as manufacturing equipment<br>
+                        <span class="node-code">9903.88.70</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node applies indent-3">
+                    <div class="node-label">→ APPLIES</div>
+                    <div class="node-content">
+                        Product from China/HK/Macau, no USTR exclusions apply<br>
+                        <div class="formula">
+                            final_amount = value × rate
+                        </div>
+                        Example: $100 product from China at 25% rate<br>
+                        → $100 × 0.25 = <strong>$25.00</strong>
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">ELSE (origin != CN/HK/MO)</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-1">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product not from China/Hong Kong/Macau<br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>📌 Important Note:</strong> Section 321 de minimis exemption (shipments under $800) was
+                    <strong>ELIMINATED for China/Hong Kong/Macau</strong> in September 2024. Do not ask about this exemption.
+                </div>
+
+                <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+
+            <!-- IEEPA Reciprocal Tab -->
+            <div id="ieepa-reciprocal" class="tree-section">
+                <h2>IEEPA Reciprocal Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HS Codes:</strong> 9903.01.25 (baseline 10%), 9903.01.63 (China escalation 84%/125%)<br>
+                    <strong>Rate:</strong> 10% baseline, varies by country and date<br>
+                    <strong>Applies to:</strong> NON-METAL portion of product value only (CRITICAL!)
+                </p>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF origin == CN OR origin == HK OR origin == MO</div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">CALCULATE total_metal_pct</div>
+                    <div class="node-content">
+                        <div class="formula">
+                            total_metal_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">CALCULATE non_metal_pct</div>
+                    <div class="node-content">
+                        <div class="formula">
+                            non_metal_pct = 100 - total_metal_pct
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF non_metal_pct <= 0</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-2">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product is 100% metal (covered by Section 232)<br>
+                        <span class="node-code">9903.01.33 (metal portion exempt)</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF non_metal_pct > 0</div>
+                </div>
+
+                <div class="tree-node action indent-2">
+                    <div class="node-label">ASK: "Percentage of U.S.-originating content by value?"</div>
+                    <div class="node-content">
+                        User provides: <code>us_content_pct</code> (0-100%)<br>
+                        Must be determined by physical characteristics only (19 U.S.C. § 1401a)
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF us_content_pct >= 20</div>
+                </div>
+
+                <div class="tree-node exempt indent-3">
+                    <div class="node-label">→ EXEMPT on U.S. portion</div>
+                    <div class="node-content">
+                        Product has ≥20% U.S. content<br>
+                        <span class="node-code">9903.01.34</span><br>
+                        <strong>CRITICAL:</strong> Requires split entry summary lines<br>
+                        <div class="formula">
+                            us_portion_amount = value × (us_content_pct / 100) × rate → $0 (exempt)<br>
+                            non_us_portion_amount = value × ((100 - us_content_pct) / 100) × rate → applies
+                        </div>
+                        Example: $100 product, 30% US content, 70% non-US<br>
+                        → US portion: $30 × 0.10 = $3.00 (EXEMPT)<br>
+                        → Non-US portion: $70 × 0.10 = <strong>$7.00 APPLIES</strong>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-2">
+                    <div class="node-label">IF us_content_pct < 20</div>
+                </div>
+
+                <div class="tree-node action indent-3">
+                    <div class="node-label">ASK: "Is product informational materials (publications, films, recordings, artwork)?"</div>
+                    <div class="node-content">Includes HTSUS 8523.80.10, 9701-9705</div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF yes</div>
+                </div>
+
+                <div class="tree-node exempt indent-4">
+                    <div class="node-label">→ EXEMPT</div>
+                    <div class="node-content">
+                        Product is informational materials<br>
+                        <span class="node-code">9903.01.21, 9903.01.22, 9903.01.12, 9903.01.03, 9903.01.31</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-3">
+                    <div class="node-label">IF no</div>
+                </div>
+
+                <div class="tree-node applies indent-4">
+                    <div class="node-label">→ APPLIES to NON-METAL portion</div>
+                    <div class="node-content">
+                        <div class="formula">
+                            final_amount = value × (non_metal_pct / 100) × rate
+                        </div>
+                        Example: $100 product, 60% steel, 40% non-metal<br>
+                        → $100 × 0.40 × 0.10 = <strong>$4.00</strong><br>
+                        <br>
+                        <strong>Entry Requirement:</strong> Split entry summary lines<br>
+                        - Line 1: Metal portion (60% = $60) - Section 232 applies, IEEPA exempt (9903.01.33)<br>
+                        - Line 2: Non-metal portion (40% = $40) - IEEPA Reciprocal applies
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">ELSE (origin != CN/HK/MO)</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-1">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product not from China/Hong Kong/Macau<br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>⚠️ CRITICAL RULE:</strong> As of June 4, 2025, IEEPA Reciprocal applies ONLY to the
+                    non-metal portion of product value. Metal portion is subject to Section 232 and exempt from
+                    IEEPA Reciprocal under exemption code 9903.01.33. Must report on separate entry summary lines.
+                </div>
+
+                <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+
+            <!-- IEEPA Fentanyl Tab -->
+            <div id="ieepa-fentanyl" class="tree-section">
+                <h2>IEEPA Fentanyl Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HS Code:</strong> 9903.01.36<br>
+                    <strong>Rate:</strong> 15% (or as specified by proclamation)<br>
+                    <strong>Applies to:</strong> 100% of product value (ENTIRE product, not just non-metal)
+                </p>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF origin == CN OR origin == HK OR origin == MO</div>
+                </div>
+
+                <div class="tree-node applies indent-1">
+                    <div class="node-label">→ APPLIES to ENTIRE product</div>
+                    <div class="node-content">
+                        <strong>NO exemptions available</strong><br>
+                        <strong>NO adjustments for metal composition</strong><br>
+                        <div class="formula">
+                            final_amount = value × rate
+                        </div>
+                        Example: $100 product from China<br>
+                        → $100 × 0.15 = <strong>$15.00</strong><br>
+                        <br>
+                        Note: Applies to 100% of value regardless of metal/non-metal composition
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">ELSE (origin != CN/HK/MO)</div>
+                </div>
+
+                <div class="tree-node not-applicable indent-1">
+                    <div class="node-label">→ NOT APPLICABLE</div>
+                    <div class="node-content">
+                        Product not from China/Hong Kong/Macau<br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>📌 Important Note:</strong> IEEPA Fentanyl is not commonly triggered for most products.
+                    It applies based on presidential proclamation for specific time periods. When it does apply,
+                    there are NO exemptions and it applies to the ENTIRE product value (unlike IEEPA Reciprocal
+                    which only applies to non-metal portions).
+                </div>
+
+                <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            // Hide all sections
+            document.querySelectorAll('.tree-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected section
+            document.getElementById(tabId).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

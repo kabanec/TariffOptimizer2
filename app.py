@@ -639,6 +639,13 @@ def stacking_builder():
     return render_template('stacking_builder.html', username=session.get('username'))
 
 
+@app.route('/stacking-decision-tree')
+@login_required
+def stacking_decision_tree():
+    """Visual decision tree for tariff stacking logic"""
+    return render_template('stacking_decision_tree.html', username=session.get('username'))
+
+
 # ========== STACKING BUILDER API ENDPOINTS ==========
 
 @app.route('/api/find-applicable-tariffs', methods=['POST'])
