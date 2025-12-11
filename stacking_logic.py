@@ -450,6 +450,113 @@ def apply_section_232_lumber_logic(tariff, answers, product_info):
     return result
 
 
+def apply_section_232_buses_logic(tariff, answers, product_info):
+    """
+    Apply Section 232 Buses (Heading 8702) decision tree logic.
+    Per Budget Lab Yale: 10% rate, NO USMCA exemptions
+    HTS Codes: 87021031, 87021061, 87022031, 87022061, 87023031, 87023061,
+               87024031, 87024061, 87029031, 87029061
+    """
+    result = {
+        'excluded': False,
+        'exemption_code': None,
+        'reasoning': '',
+        'final_amount': tariff['amount']
+    }
+
+    # Buses Section 232 has NO USMCA exemptions per Yale data
+    # Simply apply 10% rate to full product value
+    result['reasoning'] = 'APPLIES: Section 232 Buses tariff at 10% rate (Heading 8702, no USMCA exemptions available)'
+    # tariff['amount'] already calculated as value * rate, so use as-is
+
+    return result
+
+
+def apply_section_232_automotive_logic(tariff, answers, product_info):
+    """
+    Apply Section 232 Automotive decision tree logic.
+    Per Budget Lab Yale: 25% base rate with auto rebate and USMCA adjustments
+
+    Categories:
+    - Passenger vehicles & light trucks (~15 HTS codes)
+    - Automobile parts (90+ HTS codes)
+    - Medium/Heavy duty vehicles completed (25 HTS codes)
+    - MHD vehicle parts (160+ HTS codes)
+
+    Calculations:
+    1. Base rate: 25%
+    2. Auto rebate: 3.75% * 33% = 1.2375 percentage points reduction
+    3. Effective rate before USMCA: 25% - 1.2375% = 23.7625%
+    4. USMCA exemption (CA/MX): Adjusted share = usmca_share * 40% US content
+       - Canada: 91.36% * 40% = 36.54% exemption
+       - Mexico: 71.45% * 40% = 28.58% exemption
+    """
+    origin = product_info['origin_country']
+    result = {
+        'excluded': False,
+        'exemption_code': None,
+        'reasoning': '',
+        'final_amount': tariff['amount']
+    }
+
+    # Auto rebate parameters from Yale
+    AUTO_REBATE_RATE = 0.0375      # 3.75%
+    US_ASSEMBLY_SHARE = 0.33       # 33%
+    US_AUTO_CONTENT_SHARE = 0.40   # 40%
+
+    # USMCA shares for automotive (from Yale usmca_shares.csv)
+    USMCA_SHARES = {
+        'CA': 0.9136,  # 91.36%
+        'MX': 0.7145   # 71.45%
+    }
+
+    # Calculate auto rebate (applies to all automotive)
+    rebate = AUTO_REBATE_RATE * US_ASSEMBLY_SHARE  # 0.012375 (1.2375 percentage points)
+    effective_rate = tariff['rate'] - rebate  # 0.25 - 0.012375 = 0.237625
+
+    # CA/MX USMCA logic with adjusted share
+    if origin in ['CA', 'MX']:
+        usmca_qualified = answers.get('usmca_qualified', False)
+        if usmca_qualified:
+            # Adjusted USMCA share for automotive = usmca_share * US content (40%)
+            usmca_share = USMCA_SHARES.get(origin, 0)
+            adjusted_usmca_share = usmca_share * US_AUTO_CONTENT_SHARE
+
+            # Apply exemption: rate * (1 - adjusted_share)
+            final_rate_after_exemption = effective_rate * (1 - adjusted_usmca_share)
+            final_amount = product_info['value'] * final_rate_after_exemption
+
+            result['excluded'] = True  # Partially exempt
+            result['exemption_code'] = '9903.01.26' if origin == 'CA' else '9903.01.27'
+            result['reasoning'] = (
+                f'PARTIALLY EXEMPT: USMCA-qualified automotive from {origin}. '
+                f'Base rate 25% - auto rebate 1.24% = 23.76%. '
+                f'USMCA adjusted exemption {adjusted_usmca_share*100:.2f}% '
+                f'({usmca_share*100:.2f}% share × 40% US content). '
+                f'Final effective rate: {final_rate_after_exemption*100:.2f}%'
+            )
+            result['final_amount'] = final_amount
+            return result
+        else:
+            # USMCA not qualified - apply rebated rate
+            final_amount = product_info['value'] * effective_rate
+            result['reasoning'] = (
+                f'APPLIES: Automotive from {origin} (not USMCA-qualified). '
+                f'Rate: 25% - auto rebate 1.24% = {effective_rate*100:.4f}%'
+            )
+            result['final_amount'] = final_amount
+            return result
+    else:
+        # Other origins - apply rebated rate only
+        final_amount = product_info['value'] * effective_rate
+        result['reasoning'] = (
+            f'APPLIES: Automotive tariff with US assembly rebate. '
+            f'Rate: 25% - 1.24% = {effective_rate*100:.4f}%'
+        )
+        result['final_amount'] = final_amount
+        return result
+
+
 def apply_section_301_logic(tariff, answers, product_info):
     """
     Apply Section 301 decision tree logic.
@@ -649,6 +756,12 @@ def analyze_stacking(tariffs, answers, product_info):
 
         elif category == 'section_232_lumber':
             analysis = apply_section_232_lumber_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_buses':
+            analysis = apply_section_232_buses_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_automotive':
+            analysis = apply_section_232_automotive_logic(tariff, answers, product_info)
 
         elif category == 'section_301':
             analysis = apply_section_301_logic(tariff, answers, product_info)
