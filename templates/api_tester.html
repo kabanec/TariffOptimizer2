@@ -216,8 +216,16 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AvaTax API Tester</h1>
-            <p>Test different AvaTax endpoints with custom requests</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <h1>AvaTax API Tester</h1>
+                    <p>Test different AvaTax endpoints with custom requests</p>
+                </div>
+                <div style="text-align: right;">
+                    <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
+                    <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+                </div>
+            </div>
         </div>
 
         <div class="content">

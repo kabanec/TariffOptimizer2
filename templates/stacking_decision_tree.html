@@ -250,8 +250,16 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 CBP Tariff Stacking Decision Tree</h1>
-            <p>Complete deterministic logic for Chapter 98/99 punitive tariffs</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>📊 CBP Tariff Stacking Decision Tree</h1>
+                    <p>Complete deterministic logic for Chapter 98/99 punitive tariffs</p>
+                </div>
+                <div style="text-align: right;">
+                    <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
+                    <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+                </div>
+            </div>
         </div>
 
         <div class="nav-tabs">
