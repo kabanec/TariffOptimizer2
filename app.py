@@ -711,9 +711,18 @@ def find_applicable_tariffs():
                     # Section 232 Aluminum (99038.5.xx)
                     elif hs_code_item.startswith('99038') and 'aluminum' in desc_lower:
                         category = 'section_232_aluminum'
-                    # Section 232 Automotive (99030.1.xx for autos)
-                    elif hs_code_item.startswith('99030') and ('auto' in desc_lower or 'vehicle' in desc_lower):
+                    # Section 232 Copper
+                    elif 'copper' in desc_lower or 'copper' in label_lower:
+                        category = 'section_232_copper'
+                    # Section 232 Lumber/Softwood
+                    elif 'lumber' in desc_lower or 'softwood' in desc_lower or 'wood' in desc_lower:
+                        category = 'section_232_lumber'
+                    # Section 232 Automotive (9903.02.01 or contains auto/vehicle)
+                    elif hs_code_item.startswith('990302') and ('auto' in desc_lower or 'vehicle' in desc_lower or 'passenger' in desc_lower):
                         category = 'section_232_automotive'
+                    # Section 232 Buses (Heading 8702)
+                    elif 'bus' in desc_lower or '8702' in hs_code_item:
+                        category = 'section_232_buses'
                     # Section 301 China (99038.8.xx, 99038.0.xx)
                     elif hs_code_item.startswith('99038') and ('301' in desc_lower or '301' in label_lower):
                         category = 'section_301'
@@ -823,6 +832,32 @@ def find_applicable_tariffs():
             })
             logger.info(f"Added potential Section 232 Lumber tariff")
 
+        # Section 232 Automotive - potentially applicable to all countries
+        # Rate: 25% with auto rebate (3.75% × 33% = 1.2375pp reduction)
+        # Effective rate: 23.7625% before USMCA adjustments
+        if 'section_232_automotive' not in existing_categories:
+            tariffs.append({
+                'code': '9903.02.01',
+                'name': 'Section 232 Automotive',
+                'rate': 0.25,
+                'amount': 0,  # Will be calculated with auto rebate and USMCA adjustments
+                'category': 'section_232_automotive',
+                'description': 'Section 232 Automotive tariff (25% with auto rebate and USMCA adjustments)'
+            })
+            logger.info(f"Added potential Section 232 Automotive tariff")
+
+        # Section 232 Buses (Heading 8702) - potentially applicable to all countries
+        if 'section_232_buses' not in existing_categories:
+            tariffs.append({
+                'code': '9903.02.xx',
+                'name': 'Section 232 Buses',
+                'rate': 0.10,
+                'amount': 0,  # Will be calculated, no USMCA exemptions
+                'category': 'section_232_buses',
+                'description': 'Section 232 Buses tariff (10% flat rate, Heading 8702, no exemptions)'
+            })
+            logger.info(f"Added potential Section 232 Buses tariff")
+
         logger.info(f"Total tariffs after augmentation: {len(tariffs)}")
 
         return jsonify({
@@ -871,6 +906,10 @@ def generate_stacking_questions():
                 category = 'Section 232 Copper'
             elif 'lumber' in question_id:
                 category = 'Section 232 Lumber'
+            elif 'automotive' in question_id or 'vehicle' in question_id:
+                category = 'Section 232 Automotive'
+            elif 'bus' in question_id:
+                category = 'Section 232 Buses'
             elif 'ustr' in question_id or 'section_301' in question_id:
                 category = 'Section 301'
             elif 'us_content' in question_id or 'informational' in question_id or 'humanitarian' in question_id or 'column_1' in question_id:
