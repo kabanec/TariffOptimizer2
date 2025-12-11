@@ -781,9 +781,13 @@ def generate_stacking_questions():
                 category = 'Section 232 Steel'
             elif 'aluminum' in question_id:
                 category = 'Section 232 Aluminum'
+            elif 'copper' in question_id:
+                category = 'Section 232 Copper'
+            elif 'lumber' in question_id:
+                category = 'Section 232 Lumber'
             elif 'ustr' in question_id or 'section_301' in question_id:
                 category = 'Section 301'
-            elif 'us_content' in question_id or 'informational' in question_id:
+            elif 'us_content' in question_id or 'informational' in question_id or 'humanitarian' in question_id or 'column_1' in question_id:
                 category = 'IEEPA Reciprocal'
             elif 'usmca' in question_id:
                 category = 'USMCA'

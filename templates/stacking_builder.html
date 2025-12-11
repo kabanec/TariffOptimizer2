@@ -642,6 +642,8 @@
                         }
                     } else if (question.question.toLowerCase().includes('us content')) {
                         structuredAnswers['us_content_percentage'] = parseFloat(answerValue) || 0;
+                    } else if (question.question.toLowerCase().includes('column 1') || question.question.toLowerCase().includes('mfn')) {
+                        structuredAnswers['column_1_duty_rate'] = parseFloat(answerValue) || 0;
                     } else if (question.question.toLowerCase().includes('usmca')) {
                         structuredAnswers['usmca_qualified'] = (answerValue === 'yes' || answerValue === true);
                     } else if (question.question.toLowerCase().includes('humanitarian')) {
