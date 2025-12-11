@@ -661,13 +661,22 @@ def find_applicable_tariffs():
         logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}, value ${value}")
 
         # Call AvaTax API using the existing function
+        # IMPORTANT: Pass metal_composition with all metals at 100% (1.0) to ensure
+        # AvaTax returns ALL potentially applicable Section 232 metal tariffs.
+        # The actual percentages will be asked in questions and applied in stacking logic.
+        metal_composition = [
+            {'metal': 'steel', 'percentage': '1.0', 'country': origin},
+            {'metal': 'aluminum', 'percentage': '1.0', 'country': origin}
+        ]
+
         api_response = call_avatax_api(
             environment='production',
             hs_code=hs_code,
             origin_country=origin,
             destination_country='US',
             shipment_value=value,
-            mode_of_transport='courier'
+            mode_of_transport='courier',
+            metal_composition=metal_composition
         )
 
         if 'error' in api_response:
