@@ -737,7 +737,93 @@ def find_applicable_tariffs():
                     logger.info(f"  Description: {description}")
                     logger.info(f"  Type: {duty_type}, Rate: {effective_rate*100:.2f}%")
 
-        logger.info(f"Total punitive tariffs found: {len(tariffs)}")
+        logger.info(f"Total punitive tariffs found from AvaTax: {len(tariffs)}")
+
+        # CRITICAL: Augment with potentially applicable tariffs based on origin
+        # AvaTax may not return all applicable tariffs, but we need to ask questions for all potential ones
+
+        existing_categories = set(t['category'] for t in tariffs)
+
+        # IEEPA Reciprocal - applies to ALL countries (effective Aug 7, 2025) except Column 2
+        column_2_countries = ['BY', 'CU', 'KP', 'RU']
+        if 'ieepa_reciprocal' not in existing_categories and origin not in column_2_countries:
+            # Determine default rate based on origin
+            if origin in ['CN', 'HK', 'MO']:
+                rate = 0.10  # 10% for China/Hong Kong/Macau
+            else:
+                rate = 0.10  # Default 10%, will be adjusted for EU/JP/KR based on Column 1 rate
+
+            tariffs.append({
+                'code': '9903.01.25',
+                'name': 'IEEPA Reciprocal Tariff',
+                'rate': rate,
+                'amount': value * rate,
+                'category': 'ieepa_reciprocal',
+                'description': 'IEEPA Reciprocal tariff (applies to non-Section 232 portion)'
+            })
+            logger.info(f"Added IEEPA Reciprocal tariff (origin: {origin}, rate: {rate*100}%)")
+
+        # IEEPA Fentanyl - applies to CN/HK/MO only
+        if 'ieepa_fentanyl' not in existing_categories and origin in ['CN', 'HK', 'MO']:
+            tariffs.append({
+                'code': '9903.01.36',
+                'name': 'IEEPA Fentanyl Tariff',
+                'rate': 0.15,
+                'amount': value * 0.15,
+                'category': 'ieepa_fentanyl',
+                'description': 'IEEPA Fentanyl tariff (applies to entire product value)'
+            })
+            logger.info(f"Added IEEPA Fentanyl tariff (origin: {origin})")
+
+        # Section 232 Steel - potentially applicable to all countries (ask questions to determine)
+        if 'section_232_steel' not in existing_categories:
+            tariffs.append({
+                'code': '9903.81.xx',
+                'name': 'Section 232 Steel',
+                'rate': 0.25,
+                'amount': 0,  # Will be calculated based on steel percentage
+                'category': 'section_232_steel',
+                'description': 'Section 232 Steel tariff (applies to steel portion only)'
+            })
+            logger.info(f"Added potential Section 232 Steel tariff")
+
+        # Section 232 Aluminum - potentially applicable to all countries
+        if 'section_232_aluminum' not in existing_categories:
+            tariffs.append({
+                'code': '9903.85.xx',
+                'name': 'Section 232 Aluminum',
+                'rate': 0.10,
+                'amount': 0,  # Will be calculated based on aluminum percentage
+                'category': 'section_232_aluminum',
+                'description': 'Section 232 Aluminum tariff (applies to aluminum portion only)'
+            })
+            logger.info(f"Added potential Section 232 Aluminum tariff")
+
+        # Section 232 Copper - potentially applicable to all countries
+        if 'section_232_copper' not in existing_categories:
+            tariffs.append({
+                'code': '9903.01.xx',
+                'name': 'Section 232 Copper',
+                'rate': 0.50,
+                'amount': 0,  # Will be calculated based on copper percentage
+                'category': 'section_232_copper',
+                'description': 'Section 232 Copper tariff (applies to copper portion only)'
+            })
+            logger.info(f"Added potential Section 232 Copper tariff")
+
+        # Section 232 Lumber - potentially applicable to all countries
+        if 'section_232_lumber' not in existing_categories:
+            tariffs.append({
+                'code': '9903.01.xx',
+                'name': 'Section 232 Lumber',
+                'rate': 0.10,
+                'amount': 0,  # Will be calculated based on lumber percentage
+                'category': 'section_232_lumber',
+                'description': 'Section 232 Lumber tariff (applies to lumber portion only)'
+            })
+            logger.info(f"Added potential Section 232 Lumber tariff")
+
+        logger.info(f"Total tariffs after augmentation: {len(tariffs)}")
 
         return jsonify({
             'success': True,
