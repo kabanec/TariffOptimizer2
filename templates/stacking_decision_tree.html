@@ -1330,10 +1330,94 @@
                 <h2>IEEPA Reciprocal Decision Tree</h2>
                 <p style="color: #666; margin-bottom: 20px;">
                     <strong>HS Codes:</strong> 9903.01.25 (baseline 10%), 9903.01.63 (China escalation 84%/125%)<br>
-                    <strong>Rate:</strong> 10% baseline, varies by country and date<br>
-                    <strong>Applies to:</strong> NON-METAL portion of product value only (CRITICAL!)
+                    <strong>Rate:</strong> 10% baseline for CN/HK/MO; 15% threshold rule for EU/JP/KR; varies by country<br>
+                    <strong>Applies to:</strong> NON-METAL portion of product value only (CRITICAL!)<br>
+                    <strong>Effective:</strong> August 7, 2025 (per CSMS #65829726)
                 </p>
 
+                <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+                    <strong>⚠️ SPECIAL CALCULATION RULES BY COUNTRY:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li><strong>China/Hong Kong/Macau (CN/HK/MO):</strong> 10% flat rate on non-metal portion</li>
+                        <li><strong>EU Countries (27 members):</strong> 15% threshold rule - If MFN ≥15% → no reciprocal; If MFN <15% → reciprocal = 15% - MFN</li>
+                        <li><strong>Japan (JP):</strong> 15% threshold rule - If MFN ≥15% → no reciprocal; If MFN <15% → reciprocal = 15% - MFN</li>
+                        <li><strong>South Korea (KR):</strong> 15% threshold rule - If MFN ≥15% → no reciprocal; If MFN <15% → reciprocal = 15% - MFN</li>
+                        <li><strong>Column 2 Countries (BY/CU/KP/RU):</strong> Fully exempt (9903.01.29)</li>
+                        <li><strong>Humanitarian Donations:</strong> Exempt for food, clothing, medicine (9903.01.30)</li>
+                    </ul>
+                </div>
+
+                <h3 style="margin-top: 25px;">Column 2 Countries - Automatic Exemption</h3>
+                <div class="tree-node decision">
+                    <div class="node-label">IF origin == BY OR CU OR KP OR RU</div>
+                </div>
+
+                <div class="tree-node exempt indent-1">
+                    <div class="node-label">→ EXEMPT (Column 2 rate countries)</div>
+                    <div class="node-content">
+                        Countries: Belarus (BY), Cuba (CU), North Korea (KP), Russia (RU)<br>
+                        <span class="node-code">9903.01.29</span><br>
+                        <span class="node-code">final_amount = $0</span>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 25px;">EU/Japan/South Korea - 15% Threshold Rule</h3>
+                <div class="tree-node decision">
+                    <div class="node-label">IF origin == EU OR JP OR KR</div>
+                    <div class="node-content">
+                        <strong>EU Countries (27):</strong> AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE
+                    </div>
+                </div>
+
+                <div class="tree-node action indent-1">
+                    <div class="node-label">ASK: "What is the Column 1 (MFN) duty rate for this HTS code?"</div>
+                    <div class="node-content">
+                        User provides: <code>column_1_rate</code> (percentage)<br>
+                        This is the normal Most Favored Nation duty rate from the tariff schedule
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF column_1_rate >= 15%</div>
+                </div>
+
+                <div class="tree-node exempt indent-2">
+                    <div class="node-label">→ EXEMPT (MFN rate already meets 15% threshold)</div>
+                    <div class="node-content">
+                        Column 1 rate already at or above 15%, so NO reciprocal tariff<br>
+                        Total duty = Column 1 rate only<br>
+                        <div class="formula">
+                            final_amount = $0 (no reciprocal tariff)
+                        </div>
+                        Example: German product with 18% Column 1 rate<br>
+                        → Total duty = 18% (Column 1 only), reciprocal = $0
+                    </div>
+                </div>
+
+                <div class="tree-node decision indent-1">
+                    <div class="node-label">IF column_1_rate < 15%</div>
+                </div>
+
+                <div class="tree-node applies indent-2">
+                    <div class="node-label">→ APPLIES (Adjusted reciprocal rate)</div>
+                    <div class="node-content">
+                        <div class="formula">
+                            adjusted_reciprocal_rate = 15% - column_1_rate<br>
+                            final_amount = value × (non_metal_pct / 100) × (adjusted_reciprocal_rate / 100)
+                        </div>
+                        <strong>Example 1:</strong> German automotive part, $1,000 value, Column 1 rate 2.5%, 100% non-metal<br>
+                        → Reciprocal rate = 15% - 2.5% = 12.5%<br>
+                        → Final amount = $1,000 × 1.00 × 0.125 = <strong>$125.00</strong><br>
+                        → Total duty = 2.5% (Column 1) + 12.5% (Reciprocal) = <strong>15%</strong><br>
+                        <br>
+                        <strong>Example 2:</strong> Japanese electronics, $500 value, Column 1 rate 8%, 20% steel (80% non-metal)<br>
+                        → Reciprocal rate = 15% - 8% = 7%<br>
+                        → Applied to non-metal portion only: $500 × 0.80 × 0.07 = <strong>$28.00</strong><br>
+                        → Total duty on non-metal = 8% (Column 1) + 7% (Reciprocal) = <strong>15%</strong>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 25px;">China/Hong Kong/Macau - 10% Flat Rate</h3>
                 <div class="tree-node decision">
                     <div class="node-label">IF origin == CN OR origin == HK OR origin == MO</div>
                 </div>

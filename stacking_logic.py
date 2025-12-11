@@ -183,6 +183,26 @@ def get_required_questions(detected_tariffs, origin_country):
         # Skip Column 2 countries - they're automatically exempt
         column_2_countries = ['BY', 'CU', 'KP', 'RU']
         if origin_country not in column_2_countries:
+            # Special question for EU, Japan, South Korea - need Column 1 (MFN) rate
+            eu_countries = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+                            'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
+                            'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']
+            special_calculation_countries = eu_countries + ['JP', 'KR']
+
+            if origin_country in special_calculation_countries:
+                questions.append({
+                    'id': 'column_1_duty_rate',
+                    'index': question_index,
+                    'text': f'What is the Column 1 (MFN) duty rate for this HTS code?',
+                    'type': 'slider',
+                    'min': 0,
+                    'max': 50,
+                    'unit': '%',
+                    'required': True,
+                    'help': f'For {origin_country} products: If Column 1 rate ≥15%, no reciprocal tariff applies. If <15%, reciprocal rate = 15% - Column 1 rate. This ensures total duty = max(Column 1 rate, 15%).'
+                })
+                question_index += 1
+
             questions.append({
                 'id': 'is_humanitarian_donation',
                 'index': question_index,
@@ -632,18 +652,63 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
         result['final_amount'] = 0
         return result
 
-    # EU Special Calculation (Per CSMS #65829726)
-    # TODO: Implement EU 15% threshold logic
-    # - If Column 1 rate >= 15%: reciprocal rate = 0%
-    # - If Column 1 rate < 15%: reciprocal rate = 15% - Column 1 rate
-    # Requires Column 1 duty rate data (not currently available in product_info)
+    # EU, Japan, South Korea Special Calculation (15% threshold rule)
+    # Per CSMS #65829726 and trade agreements:
+    # - If Column 1 (MFN) rate >= 15%: reciprocal rate = 0%
+    # - If Column 1 (MFN) rate < 15%: reciprocal rate = 15% - Column 1 rate
+    # This ensures total duty = max(Column 1 rate, 15%)
+
     eu_countries = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
                     'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
                     'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']
-    if origin in eu_countries:
-        # For now, flag as needing Column 1 rate data
-        # Future implementation will calculate adjusted rate
-        pass
+
+    special_calculation_countries = eu_countries + ['JP', 'KR']
+
+    if origin in special_calculation_countries:
+        # Get Column 1 (MFN) duty rate from answers
+        column_1_rate = answers.get('column_1_duty_rate', None)
+
+        if column_1_rate is None:
+            # Column 1 rate not provided - cannot calculate adjusted reciprocal rate
+            result['excluded'] = False
+            result['exemption_code'] = None
+            result['reasoning'] = (
+                f'REQUIRES DATA: Product from {origin} requires Column 1 (MFN) duty rate '
+                f'to calculate adjusted reciprocal tariff. '
+                f'Rule: If MFN ≥15% then reciprocal=0%; if MFN <15% then reciprocal=15%-MFN. '
+                f'Please provide the Column 1 duty rate for this HTS code.'
+            )
+            result['final_amount'] = 0
+            logger.warning(f"Column 1 rate required for {origin} but not provided")
+            return result
+
+        # Calculate adjusted reciprocal rate based on 15% threshold
+        if column_1_rate >= 15:
+            # Column 1 rate already meets or exceeds 15%, so NO reciprocal tariff
+            result['excluded'] = True
+            result['exemption_code'] = 'N/A'
+            result['reasoning'] = (
+                f'EXEMPT: {origin} product with Column 1 (MFN) rate of {column_1_rate:.2f}% '
+                f'(≥15% threshold). No reciprocal tariff applied. '
+                f'Total duty = {column_1_rate:.2f}% (Column 1 only)'
+            )
+            result['final_amount'] = 0
+            return result
+        else:
+            # Column 1 rate < 15%, apply adjusted reciprocal rate
+            adjusted_reciprocal_rate = (15 - column_1_rate) / 100.0  # Convert to decimal
+
+            # Apply to non-232 portion only
+            final_amount = product_info['value'] * (non_232_pct / 100.0) * adjusted_reciprocal_rate
+
+            result['reasoning'] = (
+                f'APPLIES (ADJUSTED): {origin} product with Column 1 (MFN) rate {column_1_rate:.2f}%. '
+                f'Adjusted reciprocal rate = 15% - {column_1_rate:.2f}% = {adjusted_reciprocal_rate*100:.2f}%. '
+                f'Applied to {non_232_pct:.1f}% non-232 portion. '
+                f'Total duty = {column_1_rate:.2f}% (Column 1) + {adjusted_reciprocal_rate*100:.2f}% (Reciprocal) = 15%'
+            )
+            result['final_amount'] = final_amount
+            return result
 
     # Only applies to CN/HK/MO at 10% (and other countries per bulletin)
     # Note: Per bulletin, China continues at 10% under 9903.01.25
