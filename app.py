@@ -784,79 +784,15 @@ def find_applicable_tariffs():
             })
             logger.info(f"Added IEEPA Fentanyl tariff (origin: {origin})")
 
-        # Section 232 Steel - potentially applicable to all countries (ask questions to determine)
-        if 'section_232_steel' not in existing_categories:
-            tariffs.append({
-                'code': '9903.81.xx',
-                'name': 'Section 232 Steel',
-                'rate': 0.25,
-                'amount': 0,  # Will be calculated based on steel percentage
-                'category': 'section_232_steel',
-                'description': 'Section 232 Steel tariff (applies to steel portion only)'
-            })
-            logger.info(f"Added potential Section 232 Steel tariff")
-
-        # Section 232 Aluminum - potentially applicable to all countries
-        if 'section_232_aluminum' not in existing_categories:
-            tariffs.append({
-                'code': '9903.85.xx',
-                'name': 'Section 232 Aluminum',
-                'rate': 0.10,
-                'amount': 0,  # Will be calculated based on aluminum percentage
-                'category': 'section_232_aluminum',
-                'description': 'Section 232 Aluminum tariff (applies to aluminum portion only)'
-            })
-            logger.info(f"Added potential Section 232 Aluminum tariff")
-
-        # Section 232 Copper - potentially applicable to all countries
-        if 'section_232_copper' not in existing_categories:
-            tariffs.append({
-                'code': '9903.01.xx',
-                'name': 'Section 232 Copper',
-                'rate': 0.50,
-                'amount': 0,  # Will be calculated based on copper percentage
-                'category': 'section_232_copper',
-                'description': 'Section 232 Copper tariff (applies to copper portion only)'
-            })
-            logger.info(f"Added potential Section 232 Copper tariff")
-
-        # Section 232 Lumber - potentially applicable to all countries
-        if 'section_232_lumber' not in existing_categories:
-            tariffs.append({
-                'code': '9903.01.xx',
-                'name': 'Section 232 Lumber',
-                'rate': 0.10,
-                'amount': 0,  # Will be calculated based on lumber percentage
-                'category': 'section_232_lumber',
-                'description': 'Section 232 Lumber tariff (applies to lumber portion only)'
-            })
-            logger.info(f"Added potential Section 232 Lumber tariff")
-
-        # Section 232 Automotive - potentially applicable to all countries
-        # Rate: 25% with auto rebate (3.75% × 33% = 1.2375pp reduction)
-        # Effective rate: 23.7625% before USMCA adjustments
-        if 'section_232_automotive' not in existing_categories:
-            tariffs.append({
-                'code': '9903.02.01',
-                'name': 'Section 232 Automotive',
-                'rate': 0.25,
-                'amount': 0,  # Will be calculated with auto rebate and USMCA adjustments
-                'category': 'section_232_automotive',
-                'description': 'Section 232 Automotive tariff (25% with auto rebate and USMCA adjustments)'
-            })
-            logger.info(f"Added potential Section 232 Automotive tariff")
-
-        # Section 232 Buses (Heading 8702) - potentially applicable to all countries
-        if 'section_232_buses' not in existing_categories:
-            tariffs.append({
-                'code': '9903.02.xx',
-                'name': 'Section 232 Buses',
-                'rate': 0.10,
-                'amount': 0,  # Will be calculated, no USMCA exemptions
-                'category': 'section_232_buses',
-                'description': 'Section 232 Buses tariff (10% flat rate, Heading 8702, no exemptions)'
-            })
-            logger.info(f"Added potential Section 232 Buses tariff")
+        # NOTE: We do NOT automatically add Section 232 material tariffs (steel, aluminum,
+        # copper, lumber, automotive, buses) because these are HTS-code-specific.
+        # AvaTax API will correctly return which Section 232 tariffs apply based on the
+        # product's HTS code. For example:
+        # - HTS 3305100000 (shampoo) would NOT have copper or lumber
+        # - HTS 7208100000 (steel products) WOULD have Section 232 steel
+        # - HTS 8703 (automobiles) WOULD have Section 232 automotive
+        #
+        # Only IEEPA tariffs are truly country-based and apply regardless of HTS code.
 
         logger.info(f"Total tariffs after augmentation: {len(tariffs)}")
 
