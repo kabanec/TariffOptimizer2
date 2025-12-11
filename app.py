@@ -1507,6 +1507,15 @@ def api_tariff_lookup():
         if not all([hs_code, origin_country, destination_country, entry_date]):
             return jsonify({'error': 'Missing required fields'}), 400
 
+        # If metal_composition not provided, pass default 100% (1.0) for steel and aluminum
+        # to ensure AvaTax returns ALL applicable Section 232 metal tariffs
+        if metal_composition is None:
+            metal_composition = [
+                {'metal': 'steel', 'percentage': '1.0', 'country': origin_country},
+                {'metal': 'aluminum', 'percentage': '1.0', 'country': origin_country}
+            ]
+            logger.info(f"Using default metal composition for initial detection: {metal_composition}")
+
         # Call AvaTax Global Compliance API
         api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type, section_232_auto, metal_composition)
 
