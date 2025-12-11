@@ -458,15 +458,21 @@
                 }
 
                 let optionsHTML = '';
+                let hasDefaultValue = false;  // Track if question has a default value
+
                 if (question.type === 'boolean') {
+                    // Default to "No" for boolean questions
+                    selectAnswer(index, 'no');
+                    hasDefaultValue = true;
+
                     optionsHTML = `
                         <div class="answer-options">
                             <label class="answer-option">
                                 <input type="radio" name="q${index}" value="yes" onchange="selectAnswer(${index}, 'yes')">
                                 Yes
                             </label>
-                            <label class="answer-option">
-                                <input type="radio" name="q${index}" value="no" onchange="selectAnswer(${index}, 'no')">
+                            <label class="answer-option selected">
+                                <input type="radio" name="q${index}" value="no" onchange="selectAnswer(${index}, 'no')" checked>
                                 No
                             </label>
                         </div>
@@ -489,8 +495,9 @@
                     const unit = question.unit || '';
                     const placeholder = question.placeholder || `Enter value (${min}-${max})`;
 
-                    // Auto-select 0% as the default answer (valid for Section 232)
+                    // Auto-select 0% (or min value) as the default answer
                     selectAnswer(index, `${min}${unit}`);
+                    hasDefaultValue = true;
 
                     // Use slider for percentage/number questions
                     optionsHTML = `
@@ -512,6 +519,7 @@
                         const defaultCountry = productInfo.origin || '';
                         if (defaultCountry) {
                             selectAnswer(index, defaultCountry);
+                            hasDefaultValue = true;
                         }
 
                         optionsHTML = `
@@ -548,7 +556,7 @@
                     <div class="question-text">${question.question}</div>
                     ${question.help ? `<div class="question-help">${question.help}</div>` : ''}
                     ${optionsHTML}
-                    <button class="btn-next" id="nextBtn${index}" onclick="nextQuestion(${index})" disabled>
+                    <button class="btn-next" id="nextBtn${index}" onclick="nextQuestion(${index})" ${hasDefaultValue ? '' : 'disabled'}>
                         Next →
                     </button>
                 `;
