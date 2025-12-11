@@ -614,6 +614,71 @@
 
         async function analyzeStacking() {
             try {
+                // Convert answers from array indices to structured object with question keys
+                const structuredAnswers = {};
+                questions.forEach((question, index) => {
+                    const answerValue = answers[index];
+
+                    // Map answer to the proper key format used by backend
+                    if (question.question.toLowerCase().includes('steel')) {
+                        if (question.question.toLowerCase().includes('percentage') || question.type === 'percentage') {
+                            structuredAnswers['steel_percentage'] = parseFloat(answerValue) || 0;
+                        } else if (question.question.toLowerCase().includes('origin')) {
+                            structuredAnswers['steel_origin'] = answerValue;
+                        }
+                    } else if (question.question.toLowerCase().includes('aluminum')) {
+                        if (question.question.toLowerCase().includes('percentage') || question.type === 'percentage') {
+                            structuredAnswers['aluminum_percentage'] = parseFloat(answerValue) || 0;
+                        } else if (question.question.toLowerCase().includes('origin')) {
+                            structuredAnswers['aluminum_origin'] = answerValue;
+                        }
+                    } else if (question.question.toLowerCase().includes('copper')) {
+                        if (question.question.toLowerCase().includes('percentage') || question.type === 'percentage') {
+                            structuredAnswers['copper_percentage'] = parseFloat(answerValue) || 0;
+                        }
+                    } else if (question.question.toLowerCase().includes('lumber')) {
+                        if (question.question.toLowerCase().includes('percentage') || question.type === 'percentage') {
+                            structuredAnswers['lumber_percentage'] = parseFloat(answerValue) || 0;
+                        }
+                    } else if (question.question.toLowerCase().includes('us content')) {
+                        structuredAnswers['us_content_percentage'] = parseFloat(answerValue) || 0;
+                    } else if (question.question.toLowerCase().includes('usmca')) {
+                        structuredAnswers['usmca_qualified'] = (answerValue === 'yes' || answerValue === true);
+                    } else if (question.question.toLowerCase().includes('humanitarian')) {
+                        structuredAnswers['is_humanitarian_donation'] = (answerValue === 'yes' || answerValue === true);
+                    }
+                });
+
+                // Client-side validation: Check total material percentages
+                const steelPct = structuredAnswers['steel_percentage'] || 0;
+                const aluminumPct = structuredAnswers['aluminum_percentage'] || 0;
+                const copperPct = structuredAnswers['copper_percentage'] || 0;
+                const lumberPct = structuredAnswers['lumber_percentage'] || 0;
+                const totalMaterialPct = steelPct + aluminumPct + copperPct + lumberPct;
+
+                if (totalMaterialPct > 100) {
+                    alert(
+                        `ERROR: Total material percentages exceed 100%.\n\n` +
+                        `Steel: ${steelPct}%\n` +
+                        `Aluminum: ${aluminumPct}%\n` +
+                        `Copper: ${copperPct}%\n` +
+                        `Lumber: ${lumberPct}%\n` +
+                        `Total: ${totalMaterialPct.toFixed(1)}%\n\n` +
+                        `Please adjust the percentages so they add up to 100% or less.`
+                    );
+                    return;
+                }
+
+                // Validate US content percentage
+                const usContentPct = structuredAnswers['us_content_percentage'] || 0;
+                if (usContentPct > 100) {
+                    alert(
+                        `ERROR: US content percentage (${usContentPct}%) cannot exceed 100%.\n\n` +
+                        `Please enter a valid percentage between 0 and 100.`
+                    );
+                    return;
+                }
+
                 const response = await fetch('/api/analyze-stacking', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

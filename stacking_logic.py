@@ -658,6 +658,21 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
     lumber_pct = answers.get('lumber_percentage', 0)
 
     total_232_material_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
+
+    # Validation: Total material percentages cannot exceed 100%
+    if total_232_material_pct > 100:
+        result['excluded'] = False
+        result['exemption_code'] = None
+        result['reasoning'] = (
+            f'ERROR: Total Section 232 material percentages exceed 100%. '
+            f'Steel: {steel_pct}%, Aluminum: {aluminum_pct}%, '
+            f'Copper: {copper_pct}%, Lumber: {lumber_pct}%. '
+            f'Total: {total_232_material_pct}%. Please verify composition percentages.'
+        )
+        result['final_amount'] = 0
+        logger.error(f"Material percentage validation failed: {total_232_material_pct}% > 100%")
+        return result
+
     non_232_pct = 100 - total_232_material_pct
 
     if non_232_pct <= 0:
@@ -669,6 +684,19 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
 
     # Check US content exemption
     us_content = answers.get('us_content_percentage', 0)
+
+    # Validation: US content percentage should be reasonable
+    if us_content > 100:
+        result['excluded'] = False
+        result['exemption_code'] = None
+        result['reasoning'] = (
+            f'ERROR: US content percentage ({us_content}%) cannot exceed 100%. '
+            f'Please verify the US content value.'
+        )
+        result['final_amount'] = 0
+        logger.error(f"US content validation failed: {us_content}% > 100%")
+        return result
+
     if us_content > 20:
         result['excluded'] = True
         result['exemption_code'] = '9903.01.34'
