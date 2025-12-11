@@ -286,9 +286,11 @@
                             <ul style="margin-left: 20px; margin-top: 5px; font-size: 14px;">
                                 <li>✅ Steel (9903.81.xx) - 25% ACTIVE</li>
                                 <li>✅ Aluminum (9903.85.xx) - 10% ACTIVE</li>
-                                <li>⏳ Automotive/Trucks/Buses (9903.02.01) - 25% PROPOSED (not yet active)</li>
-                                <li>❌ Copper - NO Section 232 tariff (used in IEEPA calc only)</li>
-                                <li>❌ Lumber - NO Section 232 tariff (used in IEEPA calc only)</li>
+                                <li>✅ Copper derivatives - 50% ACTIVE (44 HTS codes)</li>
+                                <li>✅ Lumber/Softwood (Chapter 44) - 10% ACTIVE (~15 HTS codes)</li>
+                                <li>✅ Automotive (multiple categories) - 25% ACTIVE</li>
+                                <li>✅ Buses (Heading 8702) - 10% ACTIVE</li>
+                                <li><em>⚠️ Section 232 metals are MUTUALLY EXCLUSIVE with IEEPA Reciprocal</em></li>
                             </ul>
                         </li>
                     </ol>
@@ -427,22 +429,72 @@
                     </div>
                 </div>
 
-                <h3 style="margin-top: 30px;">Section 232 - Automotive (Proposed)</h3>
+                <h3 style="margin-top: 30px;">Section 232 - Copper Derivatives</h3>
                 <div class="tree-node applies">
-                    <div class="node-label">Tariff Code (25% rate) - NOT YET ACTIVE</div>
+                    <div class="node-label">Tariff Code (50% rate) - ACTIVE</div>
                     <div class="node-content">
-                        <span class="node-code">9903.02.01</span> Light trucks, heavy trucks, buses
-                        <br><strong>Effective Date:</strong> May 17, 2025 (proposed)
-                        <br><em>Note: This tariff has been proposed but is not yet implemented</em>
+                        <strong>Rate:</strong> 50% ad valorem<br>
+                        <strong>Coverage:</strong> 44 HTS codes for copper derivatives<br>
+                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">Exemption Codes</div>
+                    <div class="node-content">
+                        <strong>9903.01.26:</strong> Canadian goods qualifying under USMCA (if applicable)<br>
+                        <strong>9903.01.27:</strong> Mexican goods qualifying under USMCA (if applicable)<br>
+                        <strong>Note:</strong> Applies to copper portion of product value only
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Section 232 - Lumber/Softwood</h3>
+                <div class="tree-node applies">
+                    <div class="node-label">Tariff Code (10% rate) - ACTIVE</div>
+                    <div class="node-content">
+                        <strong>Rate:</strong> 10% ad valorem<br>
+                        <strong>Coverage:</strong> ~15 HTS codes from Chapter 44 (softwood lumber)<br>
+                        <strong>USMCA:</strong> No exemptions available<br>
+                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Section 232 - Automotive</h3>
+                <div class="tree-node applies">
+                    <div class="node-label">Tariff Codes (25% rate) - ACTIVE</div>
+                    <div class="node-content">
+                        <strong>Categories:</strong><br>
+                        • Passenger vehicles & light trucks (87032201-87039001, 87042101-87045100) - ~15 codes<br>
+                        • Medium/Heavy duty vehicles completed (87012100-87099000) - 25 codes<br>
+                        • Automobile parts (rubber, metals, electrical, drivetrain) - 90+ codes<br>
+                        • MHD vehicle parts - 160+ codes<br>
+                        <strong>Rate:</strong> 25% ad valorem<br>
+                        <strong>USMCA:</strong> Eligible for exemptions<br>
+                        <strong>Special:</strong> 3.75% rebate for US assembly (33% US assembly share)<br>
+                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Section 232 - Buses</h3>
+                <div class="tree-node applies">
+                    <div class="node-label">Tariff Code (10% rate) - ACTIVE</div>
+                    <div class="node-content">
+                        <span class="node-code">Heading 8702</span><br>
+                        <strong>Coverage:</strong> 10 HTS codes (87021031-87029061)<br>
+                        <strong>Rate:</strong> 10% ad valorem<br>
+                        <strong>USMCA:</strong> No exemptions available<br>
+                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
                     </div>
                 </div>
 
                 <div class="info-box">
-                    <strong>⚠️ Important Clarification:</strong>
+                    <strong>⚠️ CRITICAL CORRECTION:</strong>
                     <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
-                        <li><strong>Copper and Lumber:</strong> Do NOT have their own Section 232 tariffs</li>
-                        <li>They are referenced in IEEPA Reciprocal calculations to determine "non-metal portion"</li>
-                        <li>Used for exemption 9903.01.33 (metal portion exempt from IEEPA Reciprocal)</li>
+                        <li><strong>Copper and Lumber:</strong> DO have their own Section 232 tariffs (per Yale data)</li>
+                        <li>Copper: 50% rate on derivatives (44 HTS codes)</li>
+                        <li>Lumber: 10% rate on softwood (~15 HTS codes)</li>
+                        <li><strong>Mutual Exclusivity:</strong> Section 232 metal tariffs are MUTUALLY EXCLUSIVE with IEEPA Reciprocal</li>
+                        <li>Metal content covered by 232 does NOT get IEEPA Reciprocal applied (exemption 9903.01.33)</li>
                     </ul>
                 </div>
 

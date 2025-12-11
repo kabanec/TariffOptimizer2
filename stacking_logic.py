@@ -13,14 +13,17 @@ logger = logging.getLogger(__name__)
 
 # CBP Stacking Order (CRITICAL - do not change)
 # Per CSMS #65829726: "301, Fentanyl, Reciprocal, 232/201"
-# Updated August 2025 to match CBP bulletin guidance
+# Updated December 2025 based on Budget Lab Yale Tariff-ETRs analysis
 STACKING_ORDER = {
     'section_301': 1,              # FIRST: Section 301 (China tariffs)
     'ieepa_fentanyl': 2,           # SECOND: IEEPA Fentanyl
     'ieepa_reciprocal': 3,         # THIRD: IEEPA Reciprocal
     'section_232_steel': 4,        # FOURTH: Section 232 Steel
     'section_232_aluminum': 5,     # FIFTH: Section 232 Aluminum
-    'section_232_automotive': 6    # SIXTH: Section 232 Automotive (proposed)
+    'section_232_copper': 6,       # SIXTH: Section 232 Copper (50% rate)
+    'section_232_lumber': 7,       # SEVENTH: Section 232 Lumber/Softwood (10% rate)
+    'section_232_automotive': 8,   # EIGHTH: Section 232 Automotive
+    'section_232_buses': 9         # NINTH: Section 232 Buses (10% rate)
 }
 
 
@@ -372,6 +375,81 @@ def apply_section_232_aluminum_logic(tariff, answers, product_info):
     return result
 
 
+def apply_section_232_copper_logic(tariff, answers, product_info):
+    """
+    Apply Section 232 Copper decision tree logic.
+    Per Budget Lab Yale: 50% rate on copper derivatives
+    """
+    origin = product_info['origin_country']
+    result = {
+        'excluded': False,
+        'exemption_code': None,
+        'reasoning': '',
+        'final_amount': tariff['amount']
+    }
+
+    # Check if product has copper content
+    copper_pct = answers.get('copper_percentage', 0)
+    if copper_pct == 0:
+        result['excluded'] = True
+        result['exemption_code'] = 'N/A'
+        result['reasoning'] = 'NOT APPLICABLE: Product has 0% copper composition'
+        result['final_amount'] = 0
+        return result
+
+    # CA/MX USMCA logic (if applicable for copper)
+    if origin in ['CA', 'MX']:
+        usmca_qualified = answers.get('usmca_qualified', False)
+        if usmca_qualified:
+            result['excluded'] = True
+            result['exemption_code'] = '9903.01.26' if origin == 'CA' else '9903.01.27'
+            result['reasoning'] = f'EXEMPT: USMCA-qualified product from {origin}'
+            result['final_amount'] = 0
+        else:
+            # Apply to copper portion only (50% rate)
+            final_amount = product_info['value'] * (copper_pct / 100.0) * tariff['rate']
+            result['reasoning'] = f'APPLIES to {copper_pct:.1f}% copper portion at 50% rate'
+            result['final_amount'] = final_amount
+    else:
+        # Apply to copper portion only (50% rate)
+        final_amount = product_info['value'] * (copper_pct / 100.0) * tariff['rate']
+        result['reasoning'] = f'APPLIES to {copper_pct:.1f}% copper portion at 50% rate'
+        result['final_amount'] = final_amount
+
+    return result
+
+
+def apply_section_232_lumber_logic(tariff, answers, product_info):
+    """
+    Apply Section 232 Lumber/Softwood decision tree logic.
+    Per Budget Lab Yale: 10% rate on softwood lumber
+    """
+    origin = product_info['origin_country']
+    result = {
+        'excluded': False,
+        'exemption_code': None,
+        'reasoning': '',
+        'final_amount': tariff['amount']
+    }
+
+    # Check if product has lumber content
+    lumber_pct = answers.get('lumber_percentage', 0)
+    if lumber_pct == 0:
+        result['excluded'] = True
+        result['exemption_code'] = 'N/A'
+        result['reasoning'] = 'NOT APPLICABLE: Product has 0% lumber composition'
+        result['final_amount'] = 0
+        return result
+
+    # Lumber Section 232 does NOT have USMCA exemptions per Yale data
+    # Apply to lumber portion only (10% rate)
+    final_amount = product_info['value'] * (lumber_pct / 100.0) * tariff['rate']
+    result['reasoning'] = f'APPLIES to {lumber_pct:.1f}% lumber portion at 10% rate'
+    result['final_amount'] = final_amount
+
+    return result
+
+
 def apply_section_301_logic(tariff, answers, product_info):
     """
     Apply Section 301 decision tree logic.
@@ -463,19 +541,22 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
     # Only applies to CN/HK/MO at 10% (and other countries per bulletin)
     # Note: Per bulletin, China continues at 10% under 9903.01.25
 
-    # Calculate total metal percentage
+    # Calculate total Section 232-covered materials percentage
+    # Per Budget Lab Yale: Section 232 and IEEPA Reciprocal are MUTUALLY EXCLUSIVE
+    # Section 232 applies to: steel, aluminum, copper, lumber (and automotive, buses, furniture)
+    # IEEPA Reciprocal applies ONLY to the non-232 portion (exemption 9903.01.33)
     steel_pct = answers.get('steel_percentage', 0)
     aluminum_pct = answers.get('aluminum_percentage', 0)
     copper_pct = answers.get('copper_percentage', 0)
     lumber_pct = answers.get('lumber_percentage', 0)
 
-    total_metal_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
-    non_metal_pct = 100 - total_metal_pct
+    total_232_material_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
+    non_232_pct = 100 - total_232_material_pct
 
-    if non_metal_pct <= 0:
+    if non_232_pct <= 0:
         result['excluded'] = True
-        result['exemption_code'] = 'N/A'
-        result['reasoning'] = 'NOT APPLICABLE: Product is 100% metal (covered by Section 232)'
+        result['exemption_code'] = '9903.01.33'
+        result['reasoning'] = 'EXEMPT: Product is 100% Section 232 materials (exemption 9903.01.33 - metal portion exempt)'
         result['final_amount'] = 0
         return result
 
@@ -497,9 +578,9 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
         result['final_amount'] = 0
         return result
 
-    # Apply to non-metal portion only
-    final_amount = product_info['value'] * (non_metal_pct / 100.0) * tariff['rate']
-    result['reasoning'] = f'APPLIES to NON-METAL portion only: {non_metal_pct:.1f}% of product value (metal portion {total_metal_pct:.1f}% is subject to Section 232)'
+    # Apply to non-Section 232 portion only (mutual exclusivity)
+    final_amount = product_info['value'] * (non_232_pct / 100.0) * tariff['rate']
+    result['reasoning'] = f'APPLIES to NON-232 portion only: {non_232_pct:.1f}% of product value (Section 232 materials {total_232_material_pct:.1f}% are mutually exclusive per exemption 9903.01.33)'
     result['final_amount'] = final_amount
 
     return result
@@ -562,6 +643,12 @@ def analyze_stacking(tariffs, answers, product_info):
 
         elif category == 'section_232_aluminum':
             analysis = apply_section_232_aluminum_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_copper':
+            analysis = apply_section_232_copper_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_lumber':
+            analysis = apply_section_232_lumber_logic(tariff, answers, product_info)
 
         elif category == 'section_301':
             analysis = apply_section_301_logic(tariff, answers, product_info)
