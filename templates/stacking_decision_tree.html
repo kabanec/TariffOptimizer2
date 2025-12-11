@@ -256,9 +256,13 @@
 
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
-            <button class="nav-tab" onclick="showTab('all-codes')">All HTS Codes</button>
-            <button class="nav-tab" onclick="showTab('section232-steel')">Section 232 Steel</button>
-            <button class="nav-tab" onclick="showTab('section232-aluminum')">Section 232 Aluminum</button>
+            <button class="nav-tab" onclick="showTab('exemption-codes')">All HTS Codes</button>
+            <button class="nav-tab" onclick="showTab('section232-steel')">232 Steel</button>
+            <button class="nav-tab" onclick="showTab('section232-aluminum')">232 Aluminum</button>
+            <button class="nav-tab" onclick="showTab('section232-copper')">232 Copper</button>
+            <button class="nav-tab" onclick="showTab('section232-lumber')">232 Lumber</button>
+            <button class="nav-tab" onclick="showTab('section232-automotive')">232 Automotive</button>
+            <button class="nav-tab" onclick="showTab('section232-buses')">232 Buses</button>
             <button class="nav-tab" onclick="showTab('section301')">Section 301</button>
             <button class="nav-tab" onclick="showTab('ieepa-reciprocal')">IEEPA Reciprocal</button>
             <button class="nav-tab" onclick="showTab('ieepa-fentanyl')">IEEPA Fentanyl</button>
@@ -662,6 +666,331 @@
                 </div>
 
                 <a href="#" onclick="showTab('overview'); return false;" class="back-link">← Back to Overview</a>
+            </div>
+
+            <!-- Section 232 Copper Tab -->
+            <div id="section232-copper" class="tree-section">
+                <h2>Section 232 Copper Derivatives Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>Rate:</strong> 50% ad valorem<br>
+                    <strong>Coverage:</strong> 44 HTS codes for copper derivatives<br>
+                    <strong>Status:</strong> ✅ ACTIVE & IMPLEMENTED
+                </p>
+
+                <div class="info-box">
+                    <strong>📋 Key Facts:</strong> Copper DOES have its own Section 232 tariff at 50% rate (per Yale Budget Lab data).
+                    Previously documented incorrectly as "no Section 232 tariff."
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">Product has copper content?</div>
+                    <div class="node-content">
+                        Question: "What percentage of the product (by value) is copper?"
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">IF copper percentage = 0%</div>
+                    <div class="node-content">
+                        <strong>NOT APPLICABLE</strong><br>
+                        Exemption: N/A<br>
+                        Reasoning: Product has 0% copper composition<br>
+                        Duty: $0
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">IF copper percentage > 0% AND origin is CA or MX</div>
+                    <div class="node-content">
+                        Question: "Does this product qualify for USMCA?"
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">IF USMCA qualified</div>
+                    <div class="node-content">
+                        <strong>EXEMPT</strong><br>
+                        Exemption Code: 9903.01.26 (Canada) or 9903.01.27 (Mexico)<br>
+                        Reasoning: USMCA-qualified product from CA/MX<br>
+                        Duty: $0
+                    </div>
+                </div>
+
+                <div class="tree-node applies">
+                    <div class="node-label">ELSE: Apply to copper portion</div>
+                    <div class="node-content">
+                        <strong>APPLIES</strong><br>
+                        Rate: 50% ad valorem<br>
+                        Calculation: Product Value × (Copper % / 100) × 0.50<br>
+                        <br>
+                        <strong>Example:</strong><br>
+                        • Product value: $10,000<br>
+                        • Copper content: 30%<br>
+                        • Duty: $10,000 × 0.30 × 0.50 = <strong>$1,500</strong>
+                    </div>
+                </div>
+
+                <div class="stacking-order">
+                    <h3>Mutual Exclusivity with IEEPA Reciprocal</h3>
+                    <p>The copper portion covered by Section 232 is EXEMPT from IEEPA Reciprocal (exemption 9903.01.33).</p>
+                    <p>Only the non-copper portion is subject to IEEPA Reciprocal if applicable.</p>
+                </div>
+
+                <a href="/stacking-builder" class="back-link">← Back to Stacking Builder</a>
+            </div>
+
+            <!-- Section 232 Lumber Tab -->
+            <div id="section232-lumber" class="tree-section">
+                <h2>Section 232 Lumber/Softwood Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>Coverage:</strong> ~15 HTS codes from Chapter 44 (softwood lumber)<br>
+                    <strong>Rate:</strong> 10% ad valorem<br>
+                    <strong>Status:</strong> ✅ ACTIVE & IMPLEMENTED
+                </p>
+
+                <div class="info-box">
+                    <strong>📋 Key Facts:</strong> Lumber DOES have its own Section 232 tariff at 10% rate (per Yale Budget Lab data).
+                    Previously documented incorrectly as "no Section 232 tariff."
+                    <br><strong>Important:</strong> NO USMCA exemptions available for lumber.
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">Product has lumber content?</div>
+                    <div class="node-content">
+                        Question: "What percentage of the product (by value) is lumber/softwood?"
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">IF lumber percentage = 0%</div>
+                    <div class="node-content">
+                        <strong>NOT APPLICABLE</strong><br>
+                        Exemption: N/A<br>
+                        Reasoning: Product has 0% lumber composition<br>
+                        Duty: $0
+                    </div>
+                </div>
+
+                <div class="tree-node applies">
+                    <div class="node-label">ELSE: Apply to lumber portion</div>
+                    <div class="node-content">
+                        <strong>APPLIES</strong><br>
+                        Rate: 10% ad valorem<br>
+                        Calculation: Product Value × (Lumber % / 100) × 0.10<br>
+                        <strong>Note:</strong> NO USMCA exemptions available (per Yale data)<br>
+                        <br>
+                        <strong>Example:</strong><br>
+                        • Product value: $5,000<br>
+                        • Lumber content: 80%<br>
+                        • Origin: Canada (NO USMCA exemption for lumber)<br>
+                        • Duty: $5,000 × 0.80 × 0.10 = <strong>$400</strong>
+                    </div>
+                </div>
+
+                <div class="stacking-order">
+                    <h3>Mutual Exclusivity with IEEPA Reciprocal</h3>
+                    <p>The lumber portion covered by Section 232 is EXEMPT from IEEPA Reciprocal (exemption 9903.01.33).</p>
+                    <p>Only the non-lumber portion is subject to IEEPA Reciprocal if applicable.</p>
+                </div>
+
+                <a href="/stacking-builder" class="back-link">← Back to Stacking Builder</a>
+            </div>
+
+            <!-- Section 232 Automotive Tab -->
+            <div id="section232-automotive" class="tree-section">
+                <h2>Section 232 Automotive Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>Coverage:</strong> 290+ HTS codes across 4 subcategories<br>
+                    <strong>Base Rate:</strong> 25% → 23.76% after auto rebate<br>
+                    <strong>Status:</strong> ✅ ACTIVE & FULLY IMPLEMENTED
+                </p>
+
+                <div class="info-box">
+                    <strong>🚗 Sophisticated Calculation Logic:</strong><br>
+                    This is the most complex Section 232 category with 3-step calculation including auto rebate and adjusted USMCA share.
+                </div>
+
+                <h3>4 Subcategories (290+ HTS Codes)</h3>
+                <div class="tree-node decision">
+                    <div class="node-label">1. Passenger Vehicles & Light Trucks (16 codes)</div>
+                    <div class="node-content">
+                        87032201, 87032301, 87032401, 87033101, 87033201, 87033301, 87034000, 87035000,
+                        87036000, 87037000, 87038000, 87039001, 87042101, 87043101, 87044100, 87045100
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">2. Medium/Heavy Duty Vehicles Completed (24 codes)</div>
+                    <div class="node-content">
+                        87012100-87012900, 87041010-87049001, 87054000, 8705900080,
+                        87060003-87060050, 87091100-87091900
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">3. Automobile Parts (90+ codes)</div>
+                    <div class="node-content">
+                        Rubber, metals, electrical, drivetrain components<br>
+                        4009*, 4011*, 4016*, 7007*, 7009*, 7320*, 8301*, 8302*, 8407*, 8408*, 8409*,
+                        8413*, 8414*, 8415*, 8482*, 8483*, 8501-8512*, 8527*, 8536*, 8539*, 8706-8708*, 9015*, 9029*, 9401*
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">4. MHD Vehicle Parts (160+ codes)</div>
+                    <div class="node-content">
+                        Similar to auto parts but for medium/heavy duty vehicles<br>
+                        Expanded coverage of electrical, hydraulic, and mechanical components
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">Step-by-Step Calculation</h3>
+
+                <div class="tree-node applies">
+                    <div class="node-label">STEP 1: Base Rate</div>
+                    <div class="node-content">
+                        <strong>25% ad valorem</strong> applies to ALL 4 automotive subcategories
+                    </div>
+                </div>
+
+                <div class="tree-node applies">
+                    <div class="node-label">STEP 2: Auto Rebate (ALL automotive)</div>
+                    <div class="node-content">
+                        <strong>Formula:</strong> 3.75% × 33% = 1.2375 percentage points reduction<br>
+                        <strong>Reasoning:</strong> US assembly incentive (33% assumed US assembly share)<br>
+                        <strong>Result:</strong> 25% - 1.2375% = <strong>23.7625% effective rate</strong>
+                    </div>
+                </div>
+
+                <div class="tree-node decision">
+                    <div class="node-label">STEP 3: USMCA Exemption (CA/MX only)</div>
+                    <div class="node-content">
+                        <strong>Question:</strong> "Does this product qualify for USMCA?"
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">IF USMCA qualified from Canada</div>
+                    <div class="node-content">
+                        <strong>PARTIALLY EXEMPT</strong><br>
+                        Exemption Code: 9903.01.26<br>
+                        <strong>Adjusted USMCA Share:</strong> 91.36% × 40% US content = 36.54%<br>
+                        <strong>Final Rate:</strong> 23.7625% × (1 - 0.3654) = <strong>15.08%</strong><br>
+                        <br>
+                        <strong>Example:</strong><br>
+                        • Product: Auto part from Canada<br>
+                        • Value: $5,000<br>
+                        • Duty: $5,000 × 0.1508 = <strong>$754</strong>
+                    </div>
+                </div>
+
+                <div class="tree-node exempt">
+                    <div class="node-label">IF USMCA qualified from Mexico</div>
+                    <div class="node-content">
+                        <strong>PARTIALLY EXEMPT</strong><br>
+                        Exemption Code: 9903.01.27<br>
+                        <strong>Adjusted USMCA Share:</strong> 71.45% × 40% US content = 28.58%<br>
+                        <strong>Final Rate:</strong> 23.7625% × (1 - 0.2858) = <strong>16.98%</strong><br>
+                        <br>
+                        <strong>Example:</strong><br>
+                        • Product: Passenger vehicle from Mexico<br>
+                        • Value: $25,000<br>
+                        • Duty: $25,000 × 0.1698 = <strong>$4,245</strong>
+                    </div>
+                </div>
+
+                <div class="tree-node applies">
+                    <div class="node-label">ELSE: No USMCA exemption</div>
+                    <div class="node-content">
+                        <strong>APPLIES</strong><br>
+                        Rate: 23.7625% (after auto rebate only)<br>
+                        <br>
+                        <strong>Example (not USMCA qualified):</strong><br>
+                        • Product: MHD vehicle from Mexico<br>
+                        • Value: $80,000<br>
+                        • USMCA: No<br>
+                        • Duty: $80,000 × 0.237625 = <strong>$19,010</strong>
+                        <br><br>
+                        <strong>Example (from China):</strong><br>
+                        • Product: Auto part from China<br>
+                        • Value: $3,000<br>
+                        • Duty: $3,000 × 0.237625 = <strong>$712.88</strong>
+                    </div>
+                </div>
+
+                <div class="stacking-order">
+                    <h3>Key Parameters (from Yale Budget Lab)</h3>
+                    <ul>
+                        <li><strong>AUTO_REBATE_RATE:</strong> 3.75%</li>
+                        <li><strong>US_ASSEMBLY_SHARE:</strong> 33%</li>
+                        <li><strong>US_AUTO_CONTENT_SHARE:</strong> 40%</li>
+                        <li><strong>USMCA Share (Canada):</strong> 91.36%</li>
+                        <li><strong>USMCA Share (Mexico):</strong> 71.45%</li>
+                    </ul>
+                </div>
+
+                <a href="/stacking-builder" class="back-link">← Back to Stacking Builder</a>
+            </div>
+
+            <!-- Section 232 Buses Tab -->
+            <div id="section232-buses" class="tree-section">
+                <h2>Section 232 Buses (Heading 8702) Decision Tree</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    <strong>HTS Codes:</strong> 10 codes from Heading 8702<br>
+                    <strong>Rate:</strong> 10% ad valorem<br>
+                    <strong>Status:</strong> ✅ ACTIVE & IMPLEMENTED
+                </p>
+
+                <div class="info-box">
+                    <strong>🚌 Simple Logic:</strong> Flat 10% rate, NO USMCA exemptions, NO auto rebate.
+                </div>
+
+                <h3>Complete HTS Code List (10 codes)</h3>
+                <div class="tree-node decision">
+                    <div class="node-label">Heading 8702 - Buses</div>
+                    <div class="node-content">
+                        <span class="node-code">87021031</span>
+                        <span class="node-code">87021061</span>
+                        <span class="node-code">87022031</span>
+                        <span class="node-code">87022061</span>
+                        <span class="node-code">87023031</span>
+                        <span class="node-code">87023061</span>
+                        <span class="node-code">87024031</span>
+                        <span class="node-code">87024061</span>
+                        <span class="node-code">87029031</span>
+                        <span class="node-code">87029061</span>
+                    </div>
+                </div>
+
+                <div class="tree-node applies">
+                    <div class="node-label">Logic: Simple Application</div>
+                    <div class="node-content">
+                        <strong>APPLIES</strong><br>
+                        Rate: 10% ad valorem (flat rate)<br>
+                        <strong>No auto rebate</strong> (buses not in auto_tariffs list)<br>
+                        <strong>No USMCA exemptions</strong> (per Yale data)<br>
+                        <br>
+                        <strong>Calculation:</strong> Product Value × 0.10<br>
+                        <br>
+                        <strong>Example:</strong><br>
+                        • Product: Bus from Canada<br>
+                        • Value: $100,000<br>
+                        • USMCA: Qualified (but NO exemption available for buses)<br>
+                        • Duty: $100,000 × 0.10 = <strong>$10,000</strong>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 20px; background: #fff3cd; border-color: #ffc107;">
+                    <strong>⚠️ Important Note:</strong><br>
+                    Unlike automotive categories, buses do NOT get:
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>❌ Auto rebate (not included in auto_tariffs list)</li>
+                        <li>❌ USMCA exemptions (usmca_exempt: 0 in Yale config)</li>
+                    </ul>
+                    This results in a simple 10% flat rate for all origins.
+                </div>
+
+                <a href="/stacking-builder" class="back-link">← Back to Stacking Builder</a>
             </div>
 
             <!-- Section 232 Steel Tab -->
