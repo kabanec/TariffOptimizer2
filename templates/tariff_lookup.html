@@ -171,15 +171,15 @@
 <body>
     <div class="container">
         <header>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 10;">
                 <div>
                     <h1>AvaTax Tariff Calculator</h1>
                     <p class="subtitle">Calculate duties and tariffs for international shipments</p>
                 </div>
-                <div style="text-align: right;">
+                <div style="text-align: right; position: relative; z-index: 10;">
                     <span style="color: white; margin-right: 15px;">Welcome, {{ username }}!</span>
-                    <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px;">← Home</a>
-                    <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline;">Logout</a>
+                    <a href="{{ url_for('index') }}" style="color: white; text-decoration: underline; margin-right: 15px; cursor: pointer; position: relative; z-index: 10;">← Home</a>
+                    <a href="{{ url_for('logout') }}" style="color: white; text-decoration: underline; cursor: pointer; position: relative; z-index: 10;">Logout</a>
                 </div>
             </div>
         </header>
