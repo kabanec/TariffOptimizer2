@@ -420,6 +420,12 @@
             const commodityDescription = document.getElementById('commodityDescription').value;
             const calculatorType = document.getElementById('calculatorType').value;
 
+            console.log('=== TARIFF CALCULATION STARTED ===');
+            console.log('HTS Code:', hsCode);
+            console.log('Origin:', originCountry);
+            console.log('Destination:', destinationCountry);
+            console.log('Value:', shipmentValue);
+
             // Show loading and hide all panels
             document.getElementById('loadingIndicator').style.display = 'block';
             document.getElementById('resultsSection').style.display = 'none';
@@ -428,24 +434,31 @@
             document.getElementById('section232MetalsPanel').style.display = 'none';
 
             try {
+                const requestPayload = {
+                    hsCode,
+                    originCountry,
+                    destinationCountry,
+                    entryDate,
+                    shipmentValue,
+                    modeOfTransport: 'AIR', // Default to AIR
+                    calculatorType,
+                    environment: 'sandbox'
+                };
+
+                console.log('Request payload:', requestPayload);
+
                 const response = await fetch('/api/tariff-lookup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        hsCode,
-                        originCountry,
-                        destinationCountry,
-                        entryDate,
-                        shipmentValue,
-                        modeOfTransport: 'AIR', // Default to AIR
-                        calculatorType,
-                        environment: 'sandbox'
-                    })
+                    body: JSON.stringify(requestPayload)
                 });
 
+                console.log('Response status:', response.status);
+
                 const data = await response.json();
+                console.log('Response data:', data);
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Failed to calculate tariffs');
