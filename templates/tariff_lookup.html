@@ -885,11 +885,16 @@
         }
 
         function clearForm() {
+            console.log('Clearing form and resetting all fields');
             document.getElementById('tariffForm').reset();
             document.getElementById('entryDate').valueAsDate = new Date();
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('errorDisplay').style.display = 'none';
             document.getElementById('advancedOptions').style.display = 'none';
+            document.getElementById('section232AutomotivePanel').style.display = 'none';
+            document.getElementById('section232MetalsPanel').style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'none';
+            console.log('Form cleared successfully');
         }
 
         function toggleAIAnalysis() {
