@@ -48,21 +48,23 @@
             display: flex;
             background: #f8f9fa;
             border-bottom: 2px solid #e9ecef;
-            overflow-x: auto;
+            flex-wrap: nowrap;
         }
 
         .nav-tab {
-            flex: 1;
-            min-width: 150px;
-            padding: 15px 20px;
+            flex: 1 1 0;
+            padding: 12px 8px;
             background: transparent;
             border: none;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #6c757d;
             transition: all 0.3s;
             border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .nav-tab:hover {
