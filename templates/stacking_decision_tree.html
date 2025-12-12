@@ -281,13 +281,19 @@
             <div id="repo-status-container" style="background: linear-gradient(135deg, #059BD2 0%, #004459 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h3 style="margin: 0; font-size: 18px; font-weight: 500;">📚 Budget Lab Yale Repository Monitor</h3>
-                    <button onclick="checkYaleRepository()" id="check-repo-btn" style="background: #FF6600; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px;">
-                        🔄 Check for Updates
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="toggleRepoDetails()" id="toggle-repo-btn" style="background: rgba(255, 255, 255, 0.2); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px; display: none;">
+                            ▼ Collapse
+                        </button>
+                        <button onclick="checkYaleRepository()" id="check-repo-btn" style="background: #FF6600; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px;">
+                            🔄 Check for Updates
+                        </button>
+                    </div>
                 </div>
                 <div id="repo-status-content">
                     <p style="margin: 0; opacity: 0.9; font-size: 14px;">Click "Check for Updates" to monitor the Budget Lab Yale Tariff-ETRs repository for the latest tariff logic changes.</p>
                 </div>
+                <div id="repo-details-content" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.2);"></div>
             </div>
 
             <!-- Overview Tab -->
@@ -1641,12 +1647,14 @@
 
         async function checkYaleRepository() {
             const btn = document.getElementById('check-repo-btn');
-            const content = document.getElementById('repo-status-content');
+            const statusContent = document.getElementById('repo-status-content');
+            const detailsContent = document.getElementById('repo-details-content');
+            const toggleBtn = document.getElementById('toggle-repo-btn');
 
             // Disable button and show loading state
             btn.disabled = true;
             btn.innerHTML = '⏳ Checking...';
-            content.innerHTML = '<p style="margin: 0; opacity: 0.9; font-size: 14px;">Fetching latest repository data from GitHub...</p>';
+            statusContent.innerHTML = '<p style="margin: 0; opacity: 0.9; font-size: 14px;">Fetching latest repository data from GitHub...</p>';
 
             try {
                 const response = await fetch('/api/check-yale-repository');
@@ -1659,8 +1667,22 @@
                     // Format last updated date
                     const lastUpdated = new Date(repo.last_updated).toLocaleString();
 
-                    // Build commits HTML
-                    let commitsHtml = '<div style="margin-top: 15px;"><strong style="font-size: 15px;">Latest 5 Commits:</strong><ul style="margin-top: 10px; padding-left: 20px; line-height: 1.8;">';
+                    // Update status content with summary
+                    statusContent.innerHTML = `
+                        <div style="font-size: 14px;">
+                            <div style="margin-bottom: 8px;">
+                                <strong>Repository:</strong>
+                                <a href="${repo.url}" target="_blank" style="color: #FF6600; text-decoration: underline;">${repo.name}</a>
+                                <span style="background: rgba(255, 255, 255, 0.2); padding: 3px 8px; border-radius: 3px; margin-left: 10px; font-size: 12px;">⭐ ${repo.stars} stars</span>
+                            </div>
+                            <div style="font-size: 13px; opacity: 0.9;">
+                                <strong>Last Updated:</strong> ${lastUpdated}
+                            </div>
+                        </div>
+                    `;
+
+                    // Build commits HTML for details section
+                    let commitsHtml = '<div><strong style="font-size: 15px;">Latest 5 Commits:</strong><ul style="margin-top: 10px; padding-left: 20px; line-height: 1.8;">';
                     commits.forEach(commit => {
                         const commitDate = new Date(commit.date).toLocaleDateString();
                         commitsHtml += `
@@ -1674,18 +1696,10 @@
                     });
                     commitsHtml += '</ul></div>';
 
-                    content.innerHTML = `
+                    detailsContent.innerHTML = `
                         <div style="font-size: 14px;">
-                            <div style="margin-bottom: 10px;">
-                                <strong style="font-size: 15px;">Repository:</strong>
-                                <a href="${repo.url}" target="_blank" style="color: #FF6600; text-decoration: underline;">${repo.name}</a>
-                                <span style="background: rgba(255, 255, 255, 0.2); padding: 3px 8px; border-radius: 3px; margin-left: 10px; font-size: 12px;">⭐ ${repo.stars} stars</span>
-                            </div>
-                            <div style="margin-bottom: 10px;">
+                            <div style="margin-bottom: 15px;">
                                 <strong style="font-size: 15px;">Description:</strong> ${repo.description || 'No description'}
-                            </div>
-                            <div style="margin-bottom: 10px;">
-                                <strong style="font-size: 15px;">Last Updated:</strong> ${lastUpdated}
                             </div>
                             ${commitsHtml}
                             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.2); font-size: 12px; opacity: 0.8;">
@@ -1693,15 +1707,37 @@
                             </div>
                         </div>
                     `;
+
+                    // Show details and toggle button
+                    detailsContent.style.display = 'block';
+                    toggleBtn.style.display = 'inline-block';
+                    toggleBtn.innerHTML = '▲ Collapse';
                 } else {
-                    content.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Error: ${data.error}</p>`;
+                    statusContent.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Error: ${data.error}</p>`;
+                    detailsContent.style.display = 'none';
+                    toggleBtn.style.display = 'none';
                 }
             } catch (error) {
-                content.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Failed to fetch repository data: ${error.message}</p>`;
+                statusContent.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Failed to fetch repository data: ${error.message}</p>`;
+                detailsContent.style.display = 'none';
+                toggleBtn.style.display = 'none';
             } finally {
                 // Re-enable button
                 btn.disabled = false;
                 btn.innerHTML = '🔄 Check for Updates';
+            }
+        }
+
+        function toggleRepoDetails() {
+            const detailsContent = document.getElementById('repo-details-content');
+            const toggleBtn = document.getElementById('toggle-repo-btn');
+
+            if (detailsContent.style.display === 'none') {
+                detailsContent.style.display = 'block';
+                toggleBtn.innerHTML = '▲ Collapse';
+            } else {
+                detailsContent.style.display = 'none';
+                toggleBtn.innerHTML = '▼ Expand';
             }
         }
     </script>
