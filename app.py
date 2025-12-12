@@ -266,9 +266,11 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         if not AVALARA_USERNAME or not AVALARA_PASSWORD:
             return {'error': 'Avalara credentials not configured'}
 
-        # Normalize HS code - remove dots and limit to 8 digits
-        # Convert "3305.10.00.00" to "33051000"
-        hs_code_normalized = hs_code.replace('.', '').replace('-', '')[:8]
+        # Normalize HS code - remove dots and dashes, keep full length (up to 10 digits for HTS)
+        # Convert "3305.10.00.00" to "3305100000" (10 digits)
+        # Convert "7605.10.00.00" to "7605100000" (10 digits)
+        # Note: HS codes are 6 digits, HTS codes can be 8-10 digits for US
+        hs_code_normalized = hs_code.replace('.', '').replace('-', '').replace(' ', '')
 
         logger.info(f"Calling AvaTax Global Compliance API - Environment: {environment}")
         logger.info(f"Endpoint: {endpoint}")
