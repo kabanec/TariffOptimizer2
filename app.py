@@ -381,11 +381,11 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
                     "name": "shipping",
                     "value": "50.0",
                     "unit": "USD"
-                },
-                {
-                    "name": "AUTOMATIC_HS_FALLBACK",
-                    "value": "true"
                 }
+                # REMOVED: AUTOMATIC_HS_FALLBACK parameter
+                # This was causing the API to silently return different HTS codes
+                # For example: user enters 7605100000, API returns 4911912040
+                # Better to get an error than wrong results
             ],
             "taxRegistered": False
         }
