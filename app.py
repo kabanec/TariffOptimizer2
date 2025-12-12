@@ -646,6 +646,68 @@ def stacking_decision_tree():
     return render_template('stacking_decision_tree.html', username=session.get('username'))
 
 
+@app.route('/api/check-yale-repository')
+@login_required
+def check_yale_repository():
+    """Check Budget Lab Yale Tariff-ETRs repository for updates"""
+    try:
+        import requests
+        from datetime import datetime
+
+        # GitHub API endpoint for repository information
+        repo_url = 'https://api.github.com/repos/Budget-Lab-Yale/Tariff-ETRs'
+        commits_url = 'https://api.github.com/repos/Budget-Lab-Yale/Tariff-ETRs/commits'
+
+        # Fetch repository info
+        repo_response = requests.get(repo_url, timeout=10)
+        commits_response = requests.get(commits_url, params={'per_page': 5}, timeout=10)
+
+        if repo_response.status_code == 200 and commits_response.status_code == 200:
+            repo_data = repo_response.json()
+            commits_data = commits_response.json()
+
+            # Extract relevant information
+            last_updated = repo_data.get('updated_at', '')
+            description = repo_data.get('description', '')
+            stars = repo_data.get('stargazers_count', 0)
+
+            # Get latest commits
+            latest_commits = []
+            for commit in commits_data[:5]:
+                commit_info = {
+                    'sha': commit['sha'][:7],
+                    'message': commit['commit']['message'].split('\n')[0],  # First line only
+                    'date': commit['commit']['author']['date'],
+                    'author': commit['commit']['author']['name']
+                }
+                latest_commits.append(commit_info)
+
+            return jsonify({
+                'success': True,
+                'repository': {
+                    'name': 'Budget-Lab-Yale/Tariff-ETRs',
+                    'url': 'https://github.com/Budget-Lab-Yale/Tariff-ETRs',
+                    'description': description,
+                    'last_updated': last_updated,
+                    'stars': stars
+                },
+                'latest_commits': latest_commits,
+                'checked_at': datetime.utcnow().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'GitHub API returned status code {repo_response.status_code}'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error checking Yale repository: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ========== STACKING BUILDER API ENDPOINTS ==========
 
 @app.route('/api/find-applicable-tariffs', methods=['POST'])

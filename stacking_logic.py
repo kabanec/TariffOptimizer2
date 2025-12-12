@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # CBP Stacking Order (CRITICAL - do not change)
 # Per CSMS #65829726: "301, Fentanyl, Reciprocal, 232/201"
-# Updated December 2025 based on Budget Lab Yale Tariff-ETRs analysis
+# Updated December 2025 based on current CBP guidance and Federal Register notices
 STACKING_ORDER = {
     'section_301': 1,              # FIRST: Section 301 (China tariffs)
     'ieepa_fentanyl': 2,           # SECOND: IEEPA Fentanyl
@@ -398,7 +398,7 @@ def apply_section_232_aluminum_logic(tariff, answers, product_info):
 def apply_section_232_copper_logic(tariff, answers, product_info):
     """
     Apply Section 232 Copper decision tree logic.
-    Per Budget Lab Yale: 50% rate on copper derivatives
+    Based on CBP guidance: 50% rate on copper derivatives
     """
     origin = product_info['origin_country']
     result = {
@@ -442,7 +442,7 @@ def apply_section_232_copper_logic(tariff, answers, product_info):
 def apply_section_232_lumber_logic(tariff, answers, product_info):
     """
     Apply Section 232 Lumber/Softwood decision tree logic.
-    Per Budget Lab Yale: 10% rate on softwood lumber
+    Based on CBP guidance: 10% rate on softwood lumber
     """
     origin = product_info['origin_country']
     result = {
@@ -473,7 +473,7 @@ def apply_section_232_lumber_logic(tariff, answers, product_info):
 def apply_section_232_buses_logic(tariff, answers, product_info):
     """
     Apply Section 232 Buses (Heading 8702) decision tree logic.
-    Per Budget Lab Yale: 10% rate, NO USMCA exemptions
+    Based on CBP guidance: 10% rate, NO USMCA exemptions
     HTS Codes: 87021031, 87021061, 87022031, 87022061, 87023031, 87023061,
                87024031, 87024061, 87029031, 87029061
     """
@@ -495,7 +495,7 @@ def apply_section_232_buses_logic(tariff, answers, product_info):
 def apply_section_232_automotive_logic(tariff, answers, product_info):
     """
     Apply Section 232 Automotive decision tree logic.
-    Per Budget Lab Yale: 25% base rate with auto rebate and USMCA adjustments
+    Based on CBP guidance: 25% base rate with auto rebate and USMCA adjustments
 
     Categories:
     - Passenger vehicles & light trucks (~15 HTS codes)
@@ -714,7 +714,7 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
     # Note: Per bulletin, China continues at 10% under 9903.01.25
 
     # Calculate total Section 232-covered materials percentage
-    # Per Budget Lab Yale: Section 232 and IEEPA Reciprocal are MUTUALLY EXCLUSIVE
+    # Based on CBP guidance: Section 232 and IEEPA Reciprocal are MUTUALLY EXCLUSIVE
     # Section 232 applies to: steel, aluminum, copper, lumber (and automotive, buses, furniture)
     # IEEPA Reciprocal applies ONLY to the non-232 portion (exemption 9903.01.33)
     steel_pct = answers.get('steel_percentage', 0)

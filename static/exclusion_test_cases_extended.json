@@ -1,0 +1,393 @@
+{
+  "test_suite_version": "2.0",
+  "last_updated": "2025-12-11",
+  "description": "Comprehensive exclusion logic validation test suite with 42 scenarios covering Section 232, 301, IEEPA, and edge cases",
+  "test_cases": [
+    {
+      "test_id": "TEST-026",
+      "category": "stacking_precedence",
+      "scenario": "Section 232 steel duty blocks IEEPA Reciprocal application",
+      "input": {
+        "hs_code": "7208.10.00.00",
+        "origin_country": "CN",
+        "value": 1000,
+        "steel_content": 100,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 250},
+          {"code": "99030125", "name": "IEEPA Reciprocal - China", "rate": 0.10, "amount": 100}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Section 232 applies; IEEPA Reciprocal automatically excluded per 9903.01.33",
+        "total_duty_before": 350,
+        "total_duty_after": 250,
+        "savings": 100,
+        "broker_notes": "Per CBP guidance, products subject to Section 232 are exempt from IEEPA Reciprocal. Only Section 232 should apply. IEEPA must be excluded."
+      }
+    },
+    {
+      "test_id": "TEST-027",
+      "category": "ieepa_fentanyl",
+      "scenario": "IEEPA Fentanyl stacks additively with Section 301",
+      "input": {
+        "hs_code": "8471.30.01.00",
+        "origin_country": "CN",
+        "value": 5000,
+        "duties_applied": [
+          {"code": "99038803", "name": "Section 301 - List 1", "rate": 0.25, "amount": 1250},
+          {"code": "99030122", "name": "IEEPA Fentanyl - China", "rate": 0.20, "amount": 1000}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Both tariffs apply additively (no mutual exclusivity)",
+        "total_duty_before": 2250,
+        "total_duty_after": 2250,
+        "savings": 0,
+        "broker_notes": "IEEPA Fentanyl stacks with Section 301. Total effective rate = 45%. Both duties must be collected."
+      }
+    },
+    {
+      "test_id": "TEST-028",
+      "category": "rate_specificity",
+      "scenario": "Product-country specific rate overrides headline country rate",
+      "input": {
+        "hs_code": "8703.23.00.40",
+        "origin_country": "JP",
+        "value": 30000,
+        "column_1_rate": 2.5,
+        "duties_applied": [
+          {"code": "99030124", "name": "IEEPA Reciprocal - Japan", "rate": 0.0, "amount": 0}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Column 1 rate (2.5%) < 15%, so reciprocal calculation = 15% - 2.5% = 12.5%. But product-country exemption may apply.",
+        "total_duty_before": 0,
+        "total_duty_after": 0,
+        "savings": 0,
+        "broker_notes": "Japanese automobiles may have specific bilateral agreement rates. Verify with current IEEPA product-country matrix. MFN threshold logic applies."
+      }
+    },
+    {
+      "test_id": "TEST-029",
+      "category": "rate_specificity",
+      "scenario": "Product-specific rate applies instead of country headline",
+      "input": {
+        "hs_code": "8471.50.01.50",
+        "origin_country": "CN",
+        "value": 2000,
+        "duties_applied": [
+          {"code": "99030125", "name": "IEEPA Reciprocal - China", "rate": 0.05, "amount": 100}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Product-level rate (5% for electronics) applies instead of China headline (10%)",
+        "total_duty_before": 100,
+        "total_duty_after": 100,
+        "savings": 0,
+        "broker_notes": "Verify if this HTS has a specific product-level IEEPA rate different from China's 10% headline rate. Check Federal Register for product-specific rates."
+      }
+    },
+    {
+      "test_id": "TEST-030",
+      "category": "usmca_automotive",
+      "scenario": "Automotive with 75% regional value content qualifies for USMCA",
+      "input": {
+        "hs_code": "8703.23.00.40",
+        "origin_country": "MX",
+        "value": 25000,
+        "regional_value_content": 76,
+        "usmca_qualified": true,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 6250},
+          {"code": "99030801", "name": "Section 232 Automotive", "rate": 0.25, "amount": 6250}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.27"],
+        "status": "USMCA-qualified: Both Section 232 tariffs exempt",
+        "total_duty_before": 12500,
+        "total_duty_after": 0,
+        "savings": 12500,
+        "broker_notes": "USMCA automotive requires 75% RVC. Must verify labor value content (LVC ≥40% for 2025) and steel/aluminum melting origin requirements. RVC calculation method must be documented."
+      }
+    },
+    {
+      "test_id": "TEST-031",
+      "category": "usmca_automotive",
+      "scenario": "Automotive with 65% RVC does NOT qualify for USMCA",
+      "input": {
+        "hs_code": "8703.23.00.40",
+        "origin_country": "MX",
+        "value": 25000,
+        "regional_value_content": 65,
+        "usmca_qualified": false,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 6250},
+          {"code": "99030801", "name": "Section 232 Automotive", "rate": 0.25, "amount": 6250}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "FAILS USMCA qualification (needs ≥75% RVC). Full Section 232 duties apply.",
+        "total_duty_before": 12500,
+        "total_duty_after": 12500,
+        "savings": 0,
+        "broker_notes": "Even though origin is Mexico, USMCA benefits only apply if RVC ≥75%. Verify actual calculation methodology (net cost vs transaction value). LVC must also be ≥40%."
+      }
+    },
+    {
+      "test_id": "TEST-032",
+      "category": "section_321",
+      "scenario": "De minimis elimination for China (Sept 2024)",
+      "input": {
+        "hs_code": "6109.10.00.40",
+        "origin_country": "CN",
+        "value": 750,
+        "entry_type": "Section_321",
+        "duties_applied": [
+          {"code": "99038803", "name": "Section 301 - List 1", "rate": 0.25, "amount": 187.50}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Section 321 does NOT exempt China/HK/Macau goods from Section 301 (as of Sept 2024)",
+        "total_duty_before": 187.50,
+        "total_duty_after": 187.50,
+        "savings": 0,
+        "broker_notes": "CRITICAL: Section 321 de minimis ($800) no longer exempts CN/HK/MO from Section 301 as of September 2024. All shipments are dutiable regardless of value."
+      }
+    },
+    {
+      "test_id": "TEST-033",
+      "category": "section_321",
+      "scenario": "De minimis still works for non-China origins",
+      "input": {
+        "hs_code": "6109.10.00.40",
+        "origin_country": "VN",
+        "value": 750,
+        "entry_type": "Section_321",
+        "duties_applied": []
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["SECTION_321"],
+        "status": "Section 321 de minimis exemption applies (value < $800, no quota restrictions)",
+        "total_duty_before": 0,
+        "total_duty_after": 0,
+        "savings": 0,
+        "broker_notes": "Section 321 still applies to Vietnam and other countries (only eliminated for CN/HK/MO). Value must be ≤$800 and product cannot be subject to quota/visa/anti-dumping/countervailing duties."
+      }
+    },
+    {
+      "test_id": "TEST-034",
+      "category": "chapter_98",
+      "scenario": "9802.00.80 assembly with US-origin components",
+      "input": {
+        "hs_code": "8473.30.51.00",
+        "origin_country": "MX",
+        "value": 5000,
+        "us_component_value": 3000,
+        "foreign_value_added": 2000,
+        "entry_type": "9802.00.80",
+        "duties_applied": [
+          {"code": "99038803", "name": "Section 301", "rate": 0.25, "amount": 500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "9802.00.80: Section 301 applies ONLY to foreign value added ($2,000)",
+        "total_duty_before": 1250,
+        "total_duty_after": 500,
+        "savings": 750,
+        "broker_notes": "Under 9802.00.80, duties apply only to foreign value added. US component value ($3,000) is duty-free. Must have documentation proving US origin and that components were exported for assembly."
+      }
+    },
+    {
+      "test_id": "TEST-035",
+      "category": "chapter_98",
+      "scenario": "9801 temporary export return (duty-free)",
+      "input": {
+        "hs_code": "8471.30.01.00",
+        "origin_country": "US",
+        "value": 10000,
+        "entry_type": "9801.00.10",
+        "temporarily_exported_from_us": true,
+        "duties_applied": []
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9801"],
+        "status": "9801: US goods returned without having been advanced in value or improved abroad are duty-free",
+        "total_duty_before": 0,
+        "total_duty_after": 0,
+        "savings": 0,
+        "broker_notes": "9801 requires proof of US origin and evidence that goods were not improved/advanced in value abroad. Must match serial numbers and have export documentation."
+      }
+    },
+    {
+      "test_id": "TEST-036",
+      "category": "expiration_validation",
+      "scenario": "Product exclusion expired (date passed)",
+      "input": {
+        "hs_code": "7318.15.50.60",
+        "origin_country": "CN",
+        "value": 5000,
+        "exclusion_request_id": "DOC-EXCLUSION-12345",
+        "exclusion_expiration": "2025-03-15",
+        "entry_date": "2025-06-01",
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 1250}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Product exclusion EXPIRED on 2025-03-15. Full Section 232 duties apply.",
+        "total_duty_before": 1250,
+        "total_duty_after": 1250,
+        "savings": 0,
+        "broker_notes": "CRITICAL: Verify exclusion validity dates. Commerce exclusions are valid for 1 year or until quantity exhausted. No new exclusions granted after Feb 10, 2025. Entry date must be within validity period."
+      }
+    },
+    {
+      "test_id": "TEST-037",
+      "category": "quantity_limits",
+      "scenario": "Product exclusion quantity limit exceeded",
+      "input": {
+        "hs_code": "7318.15.50.60",
+        "origin_country": "CN",
+        "value": 5000,
+        "exclusion_request_id": "DOC-EXCLUSION-12345",
+        "exclusion_quantity_limit": 100000,
+        "cumulative_imports_ytd": 105000,
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 1250}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Exclusion quantity limit exhausted (105,000 lbs imported vs 100,000 lb limit). Duties apply.",
+        "total_duty_before": 1250,
+        "total_duty_after": 1250,
+        "savings": 0,
+        "broker_notes": "Product exclusions have both time AND quantity limits. Must track cumulative imports against approved quantity. Once quantity is exhausted, exclusion cannot be used even if still within time validity."
+      }
+    },
+    {
+      "test_id": "TEST-038",
+      "category": "multi_material",
+      "scenario": "Product contains both steel (60%) and aluminum (30%)",
+      "input": {
+        "hs_code": "8703.23.00.40",
+        "origin_country": "JP",
+        "value": 30000,
+        "steel_content": 60,
+        "steel_origin": "US",
+        "aluminum_content": 30,
+        "aluminum_origin": "CA",
+        "duties_applied": [
+          {"code": "99038187", "name": "Section 232 Steel", "rate": 0.25, "amount": 4500},
+          {"code": "99038502", "name": "Section 232 Aluminum", "rate": 0.10, "amount": 900}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.81.92", "9903.01.26"],
+        "status": "Steel portion exempt (US-melted). Aluminum portion exempt (Canada USMCA).",
+        "total_duty_before": 5400,
+        "total_duty_after": 0,
+        "savings": 5400,
+        "steel_component_duty": 0,
+        "aluminum_component_duty": 0,
+        "broker_notes": "Multi-material products: Apply exclusions independently to each material component. Steel melted/poured in US = exempt. Aluminum from Canada with USMCA = exempt. Each material evaluated separately."
+      }
+    },
+    {
+      "test_id": "TEST-039",
+      "category": "de_minimis_content",
+      "scenario": "Steel content is 2% (below de minimis threshold)",
+      "input": {
+        "hs_code": "8471.30.01.00",
+        "origin_country": "CN",
+        "value": 2000,
+        "steel_content": 2,
+        "duties_applied": []
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "Steel content ≤2.5% qualifies for de minimis exemption from Section 232 Steel",
+        "total_duty_before": 0,
+        "total_duty_after": 0,
+        "savings": 0,
+        "broker_notes": "Section 232 has de minimis thresholds: Steel ≤2.5% by weight, Aluminum ≤10% by weight. Below threshold = no Section 232 applies. Must be measured by weight, not value."
+      }
+    },
+    {
+      "test_id": "TEST-040",
+      "category": "ieepa_reciprocal_threshold",
+      "scenario": "EU product with MFN 5% < 15% threshold",
+      "input": {
+        "hs_code": "6403.99.60.30",
+        "origin_country": "IT",
+        "value": 5000,
+        "column_1_mfn_rate": 5,
+        "duties_applied": [
+          {"code": "99030124", "name": "IEEPA Reciprocal - EU", "rate": 0.10, "amount": 500}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "MFN (5%) < 15%, so reciprocal = 15% - 5% = 10%. Applies correctly.",
+        "total_duty_before": 500,
+        "total_duty_after": 500,
+        "savings": 0,
+        "broker_notes": "EU/JP/KR threshold logic: If Column 1 (MFN) rate ≥15%, reciprocal = 0%. If MFN <15%, reciprocal = (15% - MFN). This calculation is HTS-specific."
+      }
+    },
+    {
+      "test_id": "TEST-041",
+      "category": "ieepa_reciprocal_threshold",
+      "scenario": "Japanese product with MFN 20% ≥ 15% threshold",
+      "input": {
+        "hs_code": "8703.23.00.40",
+        "origin_country": "JP",
+        "value": 30000,
+        "column_1_mfn_rate": 20,
+        "duties_applied": [
+          {"code": "99030124", "name": "IEEPA Reciprocal - Japan", "rate": 0.0, "amount": 0}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": [],
+        "status": "MFN (20%) ≥15%, so reciprocal rate = 0% (exempt). No IEEPA Reciprocal applies.",
+        "total_duty_before": 0,
+        "total_duty_after": 0,
+        "savings": 0,
+        "broker_notes": "High-MFN products from EU/JP/KR automatically exempt from IEEPA Reciprocal when Column 1 rate ≥15%. This is automatic exemption, not an exclusion that needs to be claimed."
+      }
+    },
+    {
+      "test_id": "TEST-042",
+      "category": "informational_materials",
+      "scenario": "Books/publications exempt from IEEPA tariffs",
+      "input": {
+        "hs_code": "4901.99.00.40",
+        "origin_country": "CN",
+        "value": 1000,
+        "material_type": "printed_books",
+        "duties_applied": [
+          {"code": "99030125", "name": "IEEPA Reciprocal - China", "rate": 0.10, "amount": 100},
+          {"code": "99030122", "name": "IEEPA Fentanyl - China", "rate": 0.20, "amount": 200}
+        ]
+      },
+      "expected_outcome": {
+        "applicable_exclusions": ["9903.01.21"],
+        "status": "Informational materials (books, films, CDs, artworks) are exempt from IEEPA tariffs",
+        "total_duty_before": 300,
+        "total_duty_after": 0,
+        "savings": 300,
+        "broker_notes": "9903.01.21 exempts publications, films, posters, phonograph records, photographs, microfilms, microfiche, tapes, CDs, CD-ROMs, artworks, and news wire feeds from ALL IEEPA tariffs (both Reciprocal and Fentanyl)."
+      }
+    }
+  ]
+}

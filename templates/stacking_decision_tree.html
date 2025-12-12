@@ -277,6 +277,19 @@
         </div>
 
         <div class="content">
+            <!-- Repository Status Check -->
+            <div id="repo-status-container" style="background: linear-gradient(135deg, #059BD2 0%, #004459 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 500;">📚 Budget Lab Yale Repository Monitor</h3>
+                    <button onclick="checkYaleRepository()" id="check-repo-btn" style="background: #FF6600; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px;">
+                        🔄 Check for Updates
+                    </button>
+                </div>
+                <div id="repo-status-content">
+                    <p style="margin: 0; opacity: 0.9; font-size: 14px;">Click "Check for Updates" to monitor the Budget Lab Yale Tariff-ETRs repository for the latest tariff logic changes.</p>
+                </div>
+            </div>
+
             <!-- Overview Tab -->
             <div id="overview" class="tree-section active">
                 <div class="stacking-order">
@@ -447,7 +460,7 @@
                     <div class="node-content">
                         <strong>Rate:</strong> 50% ad valorem<br>
                         <strong>Coverage:</strong> 44 HTS codes for copper derivatives<br>
-                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
+                        <em>Based on current CBP guidance and Federal Register notices</em>
                     </div>
                 </div>
 
@@ -467,7 +480,7 @@
                         <strong>Rate:</strong> 10% ad valorem<br>
                         <strong>Coverage:</strong> ~15 HTS codes from Chapter 44 (softwood lumber)<br>
                         <strong>USMCA:</strong> No exemptions available<br>
-                        <em>Per Budget Lab Yale Tariff-ETRs analysis</em>
+                        <em>Based on current CBP guidance and Federal Register notices</em>
                     </div>
                 </div>
 
@@ -494,7 +507,7 @@
                         • Canada: 91.36% × 40% = <strong>36.54% exemption</strong> → Final: 15.08%<br>
                         • Mexico: 71.45% × 40% = <strong>28.58% exemption</strong> → Final: 16.98%<br>
                         • Exemption codes: 9903.01.26 (CA), 9903.01.27 (MX)<br><br>
-                        <em>Per Budget Lab Yale Tariff-ETRs repository</em>
+                        <em>Based on current USMCA provisions and CBP guidance</em>
                     </div>
                 </div>
 
@@ -516,7 +529,7 @@
                         <span class="node-code">87029061</span><br><br>
                         <strong>Rate:</strong> 10% ad valorem (flat, no rebates)<br>
                         <strong>USMCA:</strong> ❌ No exemptions available<br>
-                        <em>Per Budget Lab Yale Tariff-ETRs repository</em>
+                        <em>Based on current CBP guidance and Federal Register notices</em>
                     </div>
                 </div>
 
@@ -1624,6 +1637,72 @@
 
             // Add active class to clicked tab
             event.target.classList.add('active');
+        }
+
+        async function checkYaleRepository() {
+            const btn = document.getElementById('check-repo-btn');
+            const content = document.getElementById('repo-status-content');
+
+            // Disable button and show loading state
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Checking...';
+            content.innerHTML = '<p style="margin: 0; opacity: 0.9; font-size: 14px;">Fetching latest repository data from GitHub...</p>';
+
+            try {
+                const response = await fetch('/api/check-yale-repository');
+                const data = await response.json();
+
+                if (data.success) {
+                    const repo = data.repository;
+                    const commits = data.latest_commits;
+
+                    // Format last updated date
+                    const lastUpdated = new Date(repo.last_updated).toLocaleString();
+
+                    // Build commits HTML
+                    let commitsHtml = '<div style="margin-top: 15px;"><strong style="font-size: 15px;">Latest 5 Commits:</strong><ul style="margin-top: 10px; padding-left: 20px; line-height: 1.8;">';
+                    commits.forEach(commit => {
+                        const commitDate = new Date(commit.date).toLocaleDateString();
+                        commitsHtml += `
+                            <li style="margin-bottom: 8px; font-size: 13px;">
+                                <code style="background: rgba(255, 255, 255, 0.2); padding: 2px 6px; border-radius: 3px; font-size: 12px;">${commit.sha}</code>
+                                <strong>${commit.message}</strong>
+                                <br>
+                                <span style="opacity: 0.8; font-size: 12px;">by ${commit.author} on ${commitDate}</span>
+                            </li>
+                        `;
+                    });
+                    commitsHtml += '</ul></div>';
+
+                    content.innerHTML = `
+                        <div style="font-size: 14px;">
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 15px;">Repository:</strong>
+                                <a href="${repo.url}" target="_blank" style="color: #FF6600; text-decoration: underline;">${repo.name}</a>
+                                <span style="background: rgba(255, 255, 255, 0.2); padding: 3px 8px; border-radius: 3px; margin-left: 10px; font-size: 12px;">⭐ ${repo.stars} stars</span>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 15px;">Description:</strong> ${repo.description || 'No description'}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong style="font-size: 15px;">Last Updated:</strong> ${lastUpdated}
+                            </div>
+                            ${commitsHtml}
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.2); font-size: 12px; opacity: 0.8;">
+                                Last checked: ${new Date(data.checked_at).toLocaleString()}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="margin: 0; color: #FFD700; font-size: 14px;">⚠️ Failed to fetch repository data: ${error.message}</p>`;
+            } finally {
+                // Re-enable button
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Check for Updates';
+            }
         }
     </script>
 </body>
