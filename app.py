@@ -723,13 +723,10 @@ def find_applicable_tariffs():
         logger.info(f"Finding applicable tariffs for HS {hs_code}, origin {origin}, value ${value}")
 
         # Call AvaTax API using the existing function
-        # IMPORTANT: Pass metal_composition with all metals at 100% (1.0) to ensure
-        # AvaTax returns ALL potentially applicable Section 232 metal tariffs.
-        # The actual percentages will be asked in questions and applied in stacking logic.
-        metal_composition = [
-            {'metal': 'steel', 'percentage': '1.0', 'country': origin},
-            {'metal': 'aluminum', 'percentage': '1.0', 'country': origin}
-        ]
+        # CRITICAL: Do NOT send metal percentages in initial detection call
+        # Sending both steel=100% and aluminum=100% is impossible (total=200%)
+        # and causes API errors. Let the API detect applicable tariffs based on
+        # HTS code alone, then ask user for actual composition percentages.
 
         api_response = call_avatax_api(
             environment='production',
@@ -738,7 +735,7 @@ def find_applicable_tariffs():
             destination_country='US',
             shipment_value=value,
             mode_of_transport='courier',
-            metal_composition=metal_composition
+            metal_composition=None  # No metal composition in initial detection
         )
 
         if 'error' in api_response:
@@ -1569,14 +1566,18 @@ def api_tariff_lookup():
         if not all([hs_code, origin_country, destination_country, entry_date]):
             return jsonify({'error': 'Missing required fields'}), 400
 
-        # If metal_composition not provided, pass default 100% (1.0) for steel and aluminum
-        # to ensure AvaTax returns ALL applicable Section 232 metal tariffs
-        if metal_composition is None:
-            metal_composition = [
-                {'metal': 'steel', 'percentage': '1.0', 'country': origin_country},
-                {'metal': 'aluminum', 'percentage': '1.0', 'country': origin_country}
-            ]
-            logger.info(f"Using default metal composition for initial detection: {metal_composition}")
+        # CRITICAL: Do NOT default to 100% steel + 100% aluminum (total = 200% which is impossible!)
+        # This was causing API errors. Let metal_composition remain None for initial detection.
+        # The API will detect applicable tariffs based on HTS code alone.
+        if metal_composition is not None:
+            # Validate metal composition percentages don't exceed 100%
+            total_percentage = sum(float(m.get('percentage', 0)) for m in metal_composition)
+            if total_percentage > 1.0:  # 1.0 = 100%
+                logger.error(f"Invalid metal composition: total percentage {total_percentage*100}% exceeds 100%")
+                return jsonify({
+                    'error': f'Invalid metal composition: total percentage {total_percentage*100:.1f}% exceeds 100%'
+                }), 400
+            logger.info(f"Using provided metal composition: {metal_composition}")
 
         # Call AvaTax Global Compliance API
         api_response = call_avatax_api(environment, hs_code, origin_country, destination_country, shipment_value, mode_of_transport, calculator_type, section_232_auto, metal_composition)
