@@ -12,20 +12,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 # CBP Stacking Order (CRITICAL - do not change)
-# Per CSMS #65829726: "301, Fentanyl, Reciprocal, 232/201"
+#
+# IMPORTANT DISTINCTION:
+# - REPORTING ORDER (per CSMS #65829726): "301, Fentanyl, Reciprocal, 232/201"
+#   This is how tariffs are LISTED on entry forms
+#
+# - EVALUATION ORDER (below): Determines which tariffs APPLY
+#   Section 232 must be evaluated BEFORE IEEPA Reciprocal because:
+#   * Exemption 9903.01.33: Section 232 materials are EXEMPT from IEEPA Reciprocal
+#   * To calculate the exempt portion, Section 232 must be evaluated first
+#   * Then IEEPA Reciprocal applies ONLY to non-232 portion
+#
 # Updated December 2025 based on current CBP guidance and Federal Register notices
 # CRITICAL: HTS code-based Section 232 tariffs MUST be checked BEFORE material composition
 # If a product is classified under automotive/buses HTS codes, material-based 232 tariffs do NOT apply
 STACKING_ORDER = {
     'section_301': 1,              # FIRST: Section 301 (China tariffs)
     'ieepa_fentanyl': 2,           # SECOND: IEEPA Fentanyl
-    'ieepa_reciprocal': 3,         # THIRD: IEEPA Reciprocal
-    'section_232_automotive': 4,   # FOURTH: Section 232 Automotive (HTS code-based, mutually exclusive with material tariffs)
-    'section_232_buses': 5,        # FIFTH: Section 232 Buses (HTS code-based, mutually exclusive with material tariffs)
-    'section_232_steel': 6,        # SIXTH: Section 232 Steel (ONLY if NOT automotive/buses)
-    'section_232_aluminum': 7,     # SEVENTH: Section 232 Aluminum (ONLY if NOT automotive/buses)
-    'section_232_copper': 8,       # EIGHTH: Section 232 Copper (ONLY if NOT automotive/buses)
-    'section_232_lumber': 9        # NINTH: Section 232 Lumber/Softwood (ONLY if NOT automotive/buses)
+    'section_232_automotive': 3,   # THIRD: Section 232 Automotive (HTS code-based, mutually exclusive with material tariffs)
+    'section_232_buses': 4,        # FOURTH: Section 232 Buses (HTS code-based, mutually exclusive with material tariffs)
+    'section_232_steel': 5,        # FIFTH: Section 232 Steel (ONLY if NOT automotive/buses)
+    'section_232_aluminum': 6,     # SIXTH: Section 232 Aluminum (ONLY if NOT automotive/buses)
+    'section_232_copper': 7,       # SEVENTH: Section 232 Copper (ONLY if NOT automotive/buses)
+    'section_232_lumber': 8,       # EIGHTH: Section 232 Lumber/Softwood (ONLY if NOT automotive/buses)
+    'ieepa_reciprocal': 9          # NINTH: IEEPA Reciprocal (applies to NON-232 portion only, exemption 9903.01.33)
 }
 
 
@@ -622,10 +632,14 @@ def apply_section_301_logic(tariff, answers, product_info):
     return result
 
 
-def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
+def apply_ieepa_reciprocal_logic(tariff, answers, product_info, section_232_results=None):
     """
     Apply IEEPA Reciprocal decision tree logic.
-    CRITICAL: Applies only to NON-METAL portion of product value.
+    CRITICAL: Applies only to NON-232 portion of product value.
+
+    Args:
+        section_232_results: Dict of {material: analysis_result} from Section 232 evaluation
+                            Used to determine what percentage is exempt per 9903.01.33
     """
     result = {
         'excluded': False,
@@ -633,6 +647,9 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
         'reasoning': '',
         'final_amount': tariff['amount']
     }
+
+    if section_232_results is None:
+        section_232_results = {}
 
     # Check Column 2 rate countries exemption (9903.01.29)
     # Belarus, Cuba, North Korea, Russia
@@ -717,12 +734,30 @@ def apply_ieepa_reciprocal_logic(tariff, answers, product_info):
 
     # Calculate total Section 232-covered materials percentage
     # Based on CBP guidance: Section 232 and IEEPA Reciprocal are MUTUALLY EXCLUSIVE
-    # Section 232 applies to: steel, aluminum, copper, lumber (and automotive, buses, furniture)
+    # Section 232 applies to: steel, aluminum, copper, lumber (and automotive, buses)
     # IEEPA Reciprocal applies ONLY to the non-232 portion (exemption 9903.01.33)
-    steel_pct = answers.get('steel_percentage', 0)
-    aluminum_pct = answers.get('aluminum_percentage', 0)
-    copper_pct = answers.get('copper_percentage', 0)
-    lumber_pct = answers.get('lumber_percentage', 0)
+    #
+    # CRITICAL: We use Section 232 results from earlier evaluation, NOT just material percentages
+    # This ensures we only exempt what ACTUALLY got Section 232 tariffs applied
+    # (e.g., automotive products don't get material-based 232, so they don't get 9903.01.33 exemption)
+
+    steel_pct = 0
+    aluminum_pct = 0
+    copper_pct = 0
+    lumber_pct = 0
+
+    # Check which Section 232 tariffs actually applied (not excluded)
+    if 'steel' in section_232_results and not section_232_results['steel'].get('excluded', False):
+        steel_pct = answers.get('steel_percentage', 0)
+
+    if 'aluminum' in section_232_results and not section_232_results['aluminum'].get('excluded', False):
+        aluminum_pct = answers.get('aluminum_percentage', 0)
+
+    if 'copper' in section_232_results and not section_232_results['copper'].get('excluded', False):
+        copper_pct = answers.get('copper_percentage', 0)
+
+    if 'lumber' in section_232_results and not section_232_results['lumber'].get('excluded', False):
+        lumber_pct = answers.get('lumber_percentage', 0)
 
     total_232_material_pct = steel_pct + aluminum_pct + copper_pct + lumber_pct
 
@@ -832,6 +867,10 @@ def analyze_stacking(tariffs, answers, product_info):
     # If automotive or buses applies, material-based 232 tariffs are EXCLUDED
     hts_based_232_applies = False
 
+    # CRITICAL: Track which Section 232 tariffs actually applied (not excluded)
+    # This is needed for IEEPA Reciprocal exemption 9903.01.33 calculation
+    section_232_results = {}  # {category: analysis_result}
+
     # Sort tariffs by CBP stacking order
     sorted_tariffs = sorted(
         tariffs,
@@ -870,6 +909,7 @@ def analyze_stacking(tariffs, answers, product_info):
                 logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
             else:
                 analysis = apply_section_232_steel_logic(tariff, answers, product_info)
+                section_232_results['steel'] = analysis
 
         elif category == 'section_232_aluminum':
             # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
@@ -883,6 +923,7 @@ def analyze_stacking(tariffs, answers, product_info):
                 logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
             else:
                 analysis = apply_section_232_aluminum_logic(tariff, answers, product_info)
+                section_232_results['aluminum'] = analysis
 
         elif category == 'section_232_copper':
             # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
@@ -896,6 +937,7 @@ def analyze_stacking(tariffs, answers, product_info):
                 logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
             else:
                 analysis = apply_section_232_copper_logic(tariff, answers, product_info)
+                section_232_results['copper'] = analysis
 
         elif category == 'section_232_lumber':
             # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
@@ -909,12 +951,14 @@ def analyze_stacking(tariffs, answers, product_info):
                 logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
             else:
                 analysis = apply_section_232_lumber_logic(tariff, answers, product_info)
+                section_232_results['lumber'] = analysis
 
         elif category == 'section_301':
             analysis = apply_section_301_logic(tariff, answers, product_info)
 
         elif category == 'ieepa_reciprocal':
-            analysis = apply_ieepa_reciprocal_logic(tariff, answers, product_info)
+            # Pass Section 232 results for exemption 9903.01.33 calculation
+            analysis = apply_ieepa_reciprocal_logic(tariff, answers, product_info, section_232_results)
 
         elif category == 'ieepa_fentanyl':
             analysis = apply_ieepa_fentanyl_logic(tariff, answers, product_info)
