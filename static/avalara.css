@@ -6,22 +6,34 @@
 }
 
 :root {
-    --avalara-orange: #ff6600;
-    --avalara-blue: #059bd2;
+    /* Official Avalara Brand Colors */
+    --avalara-orange: #FF6600;
+    --avalara-blue: #059BD2;
     --avalara-blue-darkest: #004459;
-    --avalara-orange-light: #ff8533;
-    --avalara-blue-light: #3ab0da;
-    --avalara-gray-light: #f5f7fa;
-    --avalara-gray: #6b7280;
+    --avalara-orange-light: #FF8533;
+    --avalara-blue-light: #40D1F5;
+
+    /* Brand Gray Scale */
+    --avalara-gray-text: #4A4A4A;
+    --avalara-gray-light: #F1F5FA;
+    --avalara-gray-medium: #6B7280;
     --avalara-gray-dark: #374151;
+
+    /* Additional Brand Colors from Guidelines */
+    --avalara-red: #D0021B;
+    --avalara-pink: #F64E63;
+    --avalara-white: #FFFFFF;
 }
 
 body {
-    font-family: 'Apertura', 'Avenir Next Pro', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Brand Typography: Avenir Next Pro as primary font */
+    font-family: 'Avenir Next Pro', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(135deg, var(--avalara-blue) 0%, var(--avalara-blue-darkest) 100%);
     min-height: 100vh;
     padding: 20px;
-    color: #333;
+    color: var(--avalara-gray-text);
+    font-weight: 400;
+    line-height: 1.5;
 }
 
 .container {
@@ -57,18 +69,19 @@ header::before {
 }
 
 header h1 {
-    font-size: 2.2rem;
+    font-size: 24px;
     margin-bottom: 10px;
-    font-weight: 600;
+    font-weight: 500;
     position: relative;
     z-index: 1;
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 16px;
     opacity: 0.95;
     position: relative;
     z-index: 1;
+    font-weight: 400;
 }
 
 /* Main Content */
@@ -83,7 +96,8 @@ header h1 {
 .section h2 {
     color: var(--avalara-blue-darkest);
     margin-bottom: 20px;
-    font-size: 1.5rem;
+    font-size: 22px;
+    font-weight: 500;
     border-bottom: 2px solid var(--avalara-orange);
     padding-bottom: 10px;
 }
@@ -96,8 +110,8 @@ header h1 {
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    font-weight: 600;
-    color: #555;
+    font-weight: 500;
+    color: var(--avalara-gray-text);
 }
 
 .form-control {
@@ -143,22 +157,24 @@ select.form-control {
     padding: 12px 24px;
     border: none;
     border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s;
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    font-family: inherit;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--avalara-orange) 0%, var(--avalara-orange-light) 100%);
-    color: white;
+    background: var(--avalara-orange);
+    color: var(--avalara-white);
     flex: 1;
 }
 
 .btn-primary:hover {
+    background: var(--avalara-orange-light);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(255, 102, 0, 0.4);
 }
@@ -267,9 +283,10 @@ select.form-control {
 }
 
 .result-card h3 {
-    color: #333;
+    color: var(--avalara-gray-text);
     margin-bottom: 15px;
-    font-size: 1.2rem;
+    font-size: 20px;
+    font-weight: 500;
 }
 
 .response-header {
@@ -282,8 +299,8 @@ select.form-control {
 .status-badge {
     padding: 6px 12px;
     border-radius: 4px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .status-success {

@@ -14,14 +14,14 @@
             border-radius: 8px;
             padding: 25px;
             margin-bottom: 20px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #059BD2;
         }
         .step-card.active {
-            border-left-color: #10b981;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            border-left-color: #FF6600;
+            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.2);
         }
         .step-card.completed {
-            border-left-color: #059bd2;
+            border-left-color: #059BD2;
             opacity: 0.8;
         }
         .step-header {
@@ -33,32 +33,33 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: #667eea;
+            background: #059BD2;
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
+            font-weight: 500;
             margin-right: 15px;
         }
         .step-card.active .step-number {
-            background: #10b981;
+            background: #FF6600;
         }
         .step-card.completed .step-number {
-            background: #059bd2;
+            background: #059BD2;
         }
         .question-text {
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #333;
+            font-size: 18px;
+            font-weight: 500;
+            color: #4A4A4A;
             margin-bottom: 15px;
         }
         .question-help {
-            font-size: 0.9em;
-            color: #666;
+            font-size: 14px;
+            font-weight: 400;
+            color: #6B7280;
             margin-bottom: 15px;
             padding: 10px;
-            background: #f8f9fa;
+            background: #F1F5FA;
             border-radius: 4px;
         }
         .answer-options {
@@ -74,12 +75,12 @@
             transition: all 0.2s;
         }
         .answer-option:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
+            border-color: #059BD2;
+            background: #F1F5FA;
         }
         .answer-option.selected {
-            border-color: #10b981;
-            background: #f0fdf4;
+            border-color: #FF6600;
+            background: #FFF3E6;
         }
         .answer-option input[type="radio"],
         .answer-option input[type="checkbox"] {
@@ -93,14 +94,21 @@
             font-size: 1em;
         }
         .btn-next {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #FF6600;
             color: white;
             padding: 12px 30px;
             border: none;
             border-radius: 6px;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 16px;
             cursor: pointer;
             margin-top: 15px;
+            transition: all 0.3s;
+        }
+        .btn-next:hover:not(:disabled) {
+            background: #FF8533;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 102, 0, 0.4);
         }
         .btn-next:disabled {
             opacity: 0.5;
@@ -120,8 +128,8 @@
             margin-bottom: 10px;
         }
         .stacking-result {
-            background: #e7f3ff;
-            border-left: 4px solid #059bd2;
+            background: #F1F5FA;
+            border-left: 4px solid #059BD2;
             border-radius: 4px;
             padding: 20px;
             margin-top: 20px;
@@ -137,7 +145,7 @@
             margin-bottom: 10px;
             background: white;
             border-radius: 6px;
-            border-left: 4px solid #10b981;
+            border-left: 4px solid #FF6600;
             position: relative;
             padding-left: 60px;
         }
@@ -149,40 +157,41 @@
             transform: translateY(-50%);
             width: 30px;
             height: 30px;
-            background: #10b981;
+            background: #FF6600;
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
+            font-weight: 500;
         }
         .stacking-order li.excluded {
-            border-left-color: #dc3545;
+            border-left-color: #D0021B;
             opacity: 0.6;
             text-decoration: line-through;
         }
         .stacking-order li.excluded::before {
-            background: #dc3545;
+            background: #D0021B;
         }
         .reasoning-box {
             margin-top: 10px;
             padding: 10px;
-            background: #f0f0f0;
+            background: #F1F5FA;
             border-radius: 4px;
-            font-size: 0.9em;
+            font-size: 14px;
+            font-weight: 400;
         }
         .progress-bar {
             width: 100%;
             height: 8px;
-            background: #e0e0e0;
+            background: #F1F5FA;
             border-radius: 4px;
             margin-bottom: 20px;
             overflow: hidden;
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #059BD2;
             transition: width 0.3s ease;
         }
         .loading-spinner {
@@ -219,7 +228,7 @@
                     Answer questions about your product to determine which exclusions apply.
                 </p>
                 <p style="margin-bottom: 20px;">
-                    <a href="{{ url_for('stacking_decision_tree') }}" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                    <a href="{{ url_for('stacking_decision_tree') }}" style="color: #059BD2; text-decoration: none; font-weight: 500;">
                         📊 View Complete Decision Tree →
                     </a>
                 </p>
@@ -505,7 +514,7 @@
                             <input type="range" id="slider${index}" min="${min}" max="${max}" value="${min}" step="0.1"
                                    style="width: 100%; height: 8px; border-radius: 5px; background: #ddd; outline: none;"
                                    oninput="updateSliderValue(${index}, this.value, '${unit}')">
-                            <div style="text-align: center; margin-top: 10px; font-size: 24px; font-weight: bold; color: #1976d2;">
+                            <div style="text-align: center; margin-top: 10px; font-size: 24px; font-weight: 500; color: #FF6600;">
                                 <span id="sliderValue${index}">${min}</span>${unit}
                             </div>
                         </div>
@@ -744,7 +753,7 @@
                 html += `
                     <li class="${excludedClass}">
                         <strong>${item.tariffName}</strong><br>
-                        <small style="color: #6366f1; font-weight: 500;">${htsDisplay}</small><br>
+                        <small style="color: #059BD2; font-weight: 500;">${htsDisplay}</small><br>
                         <small>Rate: ${item.originalRate} | Original: $${item.originalAmount.toFixed(2)} | Final: $${item.finalAmount.toFixed(2)}</small>
                         ${item.reasoning ? `<div class="reasoning-box">💡 ${item.reasoning}</div>` : ''}
                     </li>
@@ -755,14 +764,14 @@
             html += `
                 <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 6px;">
                     <strong>Total Duties Before Exclusions:</strong> $${data.totalBefore.toFixed(2)}<br>
-                    <strong style="color: #10b981;">Total Duties After Exclusions:</strong> $${data.totalAfter.toFixed(2)}<br>
-                    <strong style="color: #667eea;">Savings:</strong> $${data.savings.toFixed(2)}
+                    <strong style="color: #FF6600;">Total Duties After Exclusions:</strong> $${data.totalAfter.toFixed(2)}<br>
+                    <strong style="color: #059BD2;">Savings:</strong> $${data.savings.toFixed(2)}
                 </div>
             `;
 
             if (data.cbpGuidance) {
                 html += `
-                    <div style="margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 6px;">
+                    <div style="margin-top: 15px; padding: 15px; background: #F1F5FA; border-radius: 6px;">
                         <strong>📘 CBP Stacking Guidance:</strong><br>
                         <small>${data.cbpGuidance}</small>
                     </div>
