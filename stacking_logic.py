@@ -14,16 +14,18 @@ logger = logging.getLogger(__name__)
 # CBP Stacking Order (CRITICAL - do not change)
 # Per CSMS #65829726: "301, Fentanyl, Reciprocal, 232/201"
 # Updated December 2025 based on current CBP guidance and Federal Register notices
+# CRITICAL: HTS code-based Section 232 tariffs MUST be checked BEFORE material composition
+# If a product is classified under automotive/buses HTS codes, material-based 232 tariffs do NOT apply
 STACKING_ORDER = {
     'section_301': 1,              # FIRST: Section 301 (China tariffs)
     'ieepa_fentanyl': 2,           # SECOND: IEEPA Fentanyl
     'ieepa_reciprocal': 3,         # THIRD: IEEPA Reciprocal
-    'section_232_steel': 4,        # FOURTH: Section 232 Steel
-    'section_232_aluminum': 5,     # FIFTH: Section 232 Aluminum
-    'section_232_copper': 6,       # SIXTH: Section 232 Copper (50% rate)
-    'section_232_lumber': 7,       # SEVENTH: Section 232 Lumber/Softwood (10% rate)
-    'section_232_automotive': 8,   # EIGHTH: Section 232 Automotive
-    'section_232_buses': 9         # NINTH: Section 232 Buses (10% rate)
+    'section_232_automotive': 4,   # FOURTH: Section 232 Automotive (HTS code-based, mutually exclusive with material tariffs)
+    'section_232_buses': 5,        # FIFTH: Section 232 Buses (HTS code-based, mutually exclusive with material tariffs)
+    'section_232_steel': 6,        # SIXTH: Section 232 Steel (ONLY if NOT automotive/buses)
+    'section_232_aluminum': 7,     # SEVENTH: Section 232 Aluminum (ONLY if NOT automotive/buses)
+    'section_232_copper': 8,       # EIGHTH: Section 232 Copper (ONLY if NOT automotive/buses)
+    'section_232_lumber': 9        # NINTH: Section 232 Lumber/Softwood (ONLY if NOT automotive/buses)
 }
 
 
@@ -826,6 +828,10 @@ def analyze_stacking(tariffs, answers, product_info):
     """
     results = []
 
+    # CRITICAL: Track if HTS code-based Section 232 tariffs apply
+    # If automotive or buses applies, material-based 232 tariffs are EXCLUDED
+    hts_based_232_applies = False
+
     # Sort tariffs by CBP stacking order
     sorted_tariffs = sorted(
         tariffs,
@@ -838,23 +844,71 @@ def analyze_stacking(tariffs, answers, product_info):
         logger.info(f"Analyzing {category}: {tariff['name']}")
 
         # Apply category-specific logic
-        if category == 'section_232_steel':
-            analysis = apply_section_232_steel_logic(tariff, answers, product_info)
-
-        elif category == 'section_232_aluminum':
-            analysis = apply_section_232_aluminum_logic(tariff, answers, product_info)
-
-        elif category == 'section_232_copper':
-            analysis = apply_section_232_copper_logic(tariff, answers, product_info)
-
-        elif category == 'section_232_lumber':
-            analysis = apply_section_232_lumber_logic(tariff, answers, product_info)
+        if category == 'section_232_automotive':
+            analysis = apply_section_232_automotive_logic(tariff, answers, product_info)
+            # If automotive tariff applies (not excluded), mark HTS-based 232 as active
+            if not analysis.get('excluded', False):
+                hts_based_232_applies = True
+                logger.info("  → Automotive Section 232 applies - material-based 232 tariffs will be excluded")
 
         elif category == 'section_232_buses':
             analysis = apply_section_232_buses_logic(tariff, answers, product_info)
+            # If buses tariff applies (not excluded), mark HTS-based 232 as active
+            if not analysis.get('excluded', False):
+                hts_based_232_applies = True
+                logger.info("  → Buses Section 232 applies - material-based 232 tariffs will be excluded")
 
-        elif category == 'section_232_automotive':
-            analysis = apply_section_232_automotive_logic(tariff, answers, product_info)
+        elif category == 'section_232_steel':
+            # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
+            if hts_based_232_applies:
+                analysis = {
+                    'excluded': True,
+                    'exemption_code': 'N/A',
+                    'reasoning': 'NOT APPLICABLE: Product already covered under Section 232 Automotive/Buses HTS code classification. Material composition tariffs do not apply when HTS-based 232 tariff applies.',
+                    'final_amount': 0
+                }
+                logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
+            else:
+                analysis = apply_section_232_steel_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_aluminum':
+            # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
+            if hts_based_232_applies:
+                analysis = {
+                    'excluded': True,
+                    'exemption_code': 'N/A',
+                    'reasoning': 'NOT APPLICABLE: Product already covered under Section 232 Automotive/Buses HTS code classification. Material composition tariffs do not apply when HTS-based 232 tariff applies.',
+                    'final_amount': 0
+                }
+                logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
+            else:
+                analysis = apply_section_232_aluminum_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_copper':
+            # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
+            if hts_based_232_applies:
+                analysis = {
+                    'excluded': True,
+                    'exemption_code': 'N/A',
+                    'reasoning': 'NOT APPLICABLE: Product already covered under Section 232 Automotive/Buses HTS code classification. Material composition tariffs do not apply when HTS-based 232 tariff applies.',
+                    'final_amount': 0
+                }
+                logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
+            else:
+                analysis = apply_section_232_copper_logic(tariff, answers, product_info)
+
+        elif category == 'section_232_lumber':
+            # MUTUAL EXCLUSIVITY: If automotive/buses applies, skip material-based tariffs
+            if hts_based_232_applies:
+                analysis = {
+                    'excluded': True,
+                    'exemption_code': 'N/A',
+                    'reasoning': 'NOT APPLICABLE: Product already covered under Section 232 Automotive/Buses HTS code classification. Material composition tariffs do not apply when HTS-based 232 tariff applies.',
+                    'final_amount': 0
+                }
+                logger.info("  → EXCLUDED due to HTS-based Section 232 priority")
+            else:
+                analysis = apply_section_232_lumber_logic(tariff, answers, product_info)
 
         elif category == 'section_301':
             analysis = apply_section_301_logic(tariff, answers, product_info)
