@@ -1641,6 +1641,9 @@ def api_tariff_lookup():
                 duty_granularity = calculation_summary.get("dutyGranularity", [])
 
                 logger.info(f"Processing {len(duty_granularity)} duty items")
+
+                # Check if AvaTax returned a different HTS code for MFN duty
+                avatax_returned_wrong_hs = False
                 for duty_item in duty_granularity:
                     duty_type = duty_item.get('type', 'STANDARD')
                     rate_label = duty_item.get('rateLabel', '')
@@ -1648,6 +1651,11 @@ def api_tariff_lookup():
                     effective_rate = float(duty_item.get('effectiveRate', 0))
                     hs_code_item = duty_item.get('hsCode', '')
                     logger.info(f"Duty item: type={duty_type}, hsCode={hs_code_item}, rateLabel={rate_label}")
+
+                    # Detect if AvaTax returned wrong HTS code for MFN duty
+                    if duty_type == 'MFN' and hs_code_item and hs_code_item != hs_code.replace('.', '').replace('-', '').replace(' ', ''):
+                        logger.warning(f"⚠️ AvaTax returned DIFFERENT HTS for MFN duty! Requested: {hs_code}, Got: {hs_code_item}")
+                        avatax_returned_wrong_hs = True
 
                     duty_info = {
                         'taxName': rate_label or description,
@@ -1819,6 +1827,16 @@ Format your response with clear sections for each punitive tariff. Be specific a
 
         # ONLY show metals that are actually in the API response - do NOT add extras
 
+        # Add warning if AvaTax returned wrong HTS code
+        warning_message = None
+        if avatax_returned_wrong_hs:
+            wrong_hs_codes = []
+            for duty_item in duty_granularity:
+                if duty_item.get('type') == 'MFN' and duty_item.get('hsCode'):
+                    wrong_hs_codes.append(duty_item.get('hsCode'))
+
+            warning_message = f"⚠️ WARNING: AvaTax does not have data for HTS code {hs_code}. The API returned tariff information for {', '.join(set(wrong_hs_codes))} instead. These results may not be accurate for your product. Please verify the HTS code or contact Avalara support."
+
         return jsonify({
             'success': True,
             'apiResponse': api_response,
@@ -1826,7 +1844,8 @@ Format your response with clear sections for each punitive tariff. Be specific a
             'punitiveTariffs': punitive_tariffs,
             'section232AutomotiveOptions': unique_automotive_options,
             'section232MetalOptions': unique_metal_options,
-            'aiAnalysis': ai_analysis
+            'aiAnalysis': ai_analysis,
+            'warning': warning_message
         })
 
     except Exception as e:
