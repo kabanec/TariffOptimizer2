@@ -209,6 +209,53 @@
             margin: 20px 0;
         }
 
+        .hts-code-toggle {
+            background: #FF6600;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .hts-code-toggle:hover {
+            background: #FF8533;
+        }
+
+        .hts-code-list {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .hts-code-list.expanded {
+            display: block;
+        }
+
+        .hts-code-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .hts-code-item {
+            background: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: center;
+        }
+
         .info-box strong {
             color: #1976d2;
         }
@@ -264,7 +311,7 @@
 
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showTab('overview')">Overview</button>
-            <button class="nav-tab" onclick="showTab('exemption-codes')">All HTS Codes</button>
+            <button class="nav-tab" onclick="showTab('exemption-codes')">Section 98/99 Codes</button>
             <button class="nav-tab" onclick="showTab('section232-steel')">232 Steel</button>
             <button class="nav-tab" onclick="showTab('section232-aluminum')">232 Aluminum</button>
             <button class="nav-tab" onclick="showTab('section232-copper')">232 Copper</button>
@@ -484,9 +531,34 @@
                     <div class="node-label">Tariff Code (10% rate) - ACTIVE</div>
                     <div class="node-content">
                         <strong>Rate:</strong> 10% ad valorem<br>
-                        <strong>Coverage:</strong> ~15 HTS codes from Chapter 44 (softwood lumber)<br>
+                        <strong>Coverage:</strong> 15 HTS codes from Chapter 44 (softwood lumber)<br>
                         <strong>USMCA:</strong> No exemptions available<br>
                         <em>Based on current CBP guidance and Federal Register notices</em>
+
+                        <button class="hts-code-toggle" onclick="toggleHTSCodes('lumber-codes')">
+                            ▼ Show HTS Codes (15)
+                        </button>
+
+                        <div id="lumber-codes" class="hts-code-list">
+                            <strong>Affected HTS Codes:</strong>
+                            <div class="hts-code-grid">
+                                <div class="hts-code-item">4407.11.00</div>
+                                <div class="hts-code-item">4407.12.00</div>
+                                <div class="hts-code-item">4407.19.00</div>
+                                <div class="hts-code-item">4409.10.05</div>
+                                <div class="hts-code-item">4409.10.10</div>
+                                <div class="hts-code-item">4409.10.20</div>
+                                <div class="hts-code-item">4409.10.90</div>
+                                <div class="hts-code-item">4418.91.10</div>
+                                <div class="hts-code-item">4418.91.50</div>
+                                <div class="hts-code-item">4421.99.70</div>
+                                <div class="hts-code-item">4421.99.80</div>
+                                <div class="hts-code-item">4421.99.90</div>
+                                <div class="hts-code-item">4421.99.93</div>
+                                <div class="hts-code-item">4421.99.94</div>
+                                <div class="hts-code-item">4421.99.97</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -495,15 +567,72 @@
                     <div class="node-label">Tariff Codes (25% base rate, 23.76% effective) - ACTIVE</div>
                     <div class="node-content">
                         <strong>✅ IMPLEMENTED WITH FULL LOGIC</strong><br><br>
-                        <strong>4 Subcategories (290+ total HTS codes):</strong><br>
-                        1. <strong>Passenger vehicles & light trucks</strong> - 16 HTS codes<br>
-                        &nbsp;&nbsp;&nbsp;87032201, 87032301, 87032401, 87033101, 87033201, 87033301, 87034000, 87035000, 87036000, 87037000, 87038000, 87039001, 87042101, 87043101, 87044100, 87045100<br><br>
-                        2. <strong>Medium/Heavy duty vehicles completed</strong> - 24 HTS codes<br>
-                        &nbsp;&nbsp;&nbsp;87012100-87012900, 87041010-87049001, 87054000, 8705900080, 87060003-87060050, 87091100-87091900<br><br>
+                        <strong>4 Subcategories (290+ total HTS codes):</strong><br><br>
+
+                        1. <strong>Passenger vehicles & light trucks</strong> - 16 HTS codes
+                        <button class="hts-code-toggle" onclick="toggleHTSCodes('auto-passenger-codes')">
+                            ▼ Show Codes (16)
+                        </button>
+                        <div id="auto-passenger-codes" class="hts-code-list">
+                            <div class="hts-code-grid">
+                                <div class="hts-code-item">8703.22.01</div>
+                                <div class="hts-code-item">8703.23.01</div>
+                                <div class="hts-code-item">8703.24.01</div>
+                                <div class="hts-code-item">8703.31.01</div>
+                                <div class="hts-code-item">8703.32.01</div>
+                                <div class="hts-code-item">8703.33.01</div>
+                                <div class="hts-code-item">8703.40.00</div>
+                                <div class="hts-code-item">8703.50.00</div>
+                                <div class="hts-code-item">8703.60.00</div>
+                                <div class="hts-code-item">8703.70.00</div>
+                                <div class="hts-code-item">8703.80.00</div>
+                                <div class="hts-code-item">8703.90.01</div>
+                                <div class="hts-code-item">8704.21.01</div>
+                                <div class="hts-code-item">8704.31.01</div>
+                                <div class="hts-code-item">8704.41.00</div>
+                                <div class="hts-code-item">8704.51.00</div>
+                            </div>
+                        </div>
+                        <br>
+
+                        2. <strong>Medium/Heavy duty vehicles completed</strong> - 24 HTS codes
+                        <button class="hts-code-toggle" onclick="toggleHTSCodes('auto-mhd-codes')">
+                            ▼ Show Codes (24)
+                        </button>
+                        <div id="auto-mhd-codes" class="hts-code-list">
+                            <div class="hts-code-grid">
+                                <div class="hts-code-item">8701.21.00</div>
+                                <div class="hts-code-item">8701.22.00</div>
+                                <div class="hts-code-item">8701.23.00</div>
+                                <div class="hts-code-item">8701.24.00</div>
+                                <div class="hts-code-item">8701.29.00</div>
+                                <div class="hts-code-item">8704.10.10</div>
+                                <div class="hts-code-item">8704.10.50</div>
+                                <div class="hts-code-item">8704.22.10</div>
+                                <div class="hts-code-item">8704.22.50</div>
+                                <div class="hts-code-item">8704.23.00</div>
+                                <div class="hts-code-item">8704.32.10</div>
+                                <div class="hts-code-item">8704.32.50</div>
+                                <div class="hts-code-item">8704.90.01</div>
+                                <div class="hts-code-item">8705.40.00</div>
+                                <div class="hts-code-item">8705.90.00.80</div>
+                                <div class="hts-code-item">8706.00.03</div>
+                                <div class="hts-code-item">8706.00.15</div>
+                                <div class="hts-code-item">8706.00.25</div>
+                                <div class="hts-code-item">8706.00.50</div>
+                                <div class="hts-code-item">8709.11.00</div>
+                                <div class="hts-code-item">8709.19.00</div>
+                                <div class="hts-code-item">8709.90.00</div>
+                            </div>
+                        </div>
+                        <br>
+
                         3. <strong>Automobile parts</strong> - 90+ HTS codes<br>
-                        &nbsp;&nbsp;&nbsp;Rubber, metals, electrical, drivetrain components (4009*, 4011*, 7007*, 8407-8708*, 8511*, 8536*, etc.)<br><br>
+                        &nbsp;&nbsp;&nbsp;<em>Rubber, metals, electrical, drivetrain components (4009*, 4011*, 7007*, 8407-8708*, 8511*, 8536*, etc.)</em><br><br>
+
                         4. <strong>MHD vehicle parts</strong> - 160+ HTS codes<br>
-                        &nbsp;&nbsp;&nbsp;Similar to auto parts but for medium/heavy duty vehicles<br><br>
+                        &nbsp;&nbsp;&nbsp;<em>Similar to auto parts but for medium/heavy duty vehicles</em><br><br>
+
                         <strong>Calculation Formula:</strong><br>
                         • Base rate: 25%<br>
                         • Auto rebate: 3.75% × 33% = <strong>-1.2375%</strong><br>
@@ -1738,6 +1867,19 @@
             } else {
                 detailsContent.style.display = 'none';
                 toggleBtn.innerHTML = '▼ Expand';
+            }
+        }
+
+        function toggleHTSCodes(listId) {
+            const list = document.getElementById(listId);
+            const button = event.target;
+
+            if (list.classList.contains('expanded')) {
+                list.classList.remove('expanded');
+                button.innerHTML = button.innerHTML.replace('▲ Hide', '▼ Show');
+            } else {
+                list.classList.add('expanded');
+                button.innerHTML = button.innerHTML.replace('▼ Show', '▲ Hide');
             }
         }
     </script>
