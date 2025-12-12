@@ -417,8 +417,23 @@ def call_avatax_api(environment, hs_code, origin_country, destination_country, s
         logger.info(f"Response status: {response.status_code}")
         logger.info(f"Response body: {response.text[:2000]}")
 
+        # Log if AvaTax is returning a different HTS code than requested
         if response.status_code in [200, 201]:
-            return response.json()
+            response_data = response.json()
+            lines = response_data.get('lines', [])
+            if lines:
+                line = lines[0]
+                returned_item = line.get('item', {})
+                returned_hs_params = returned_item.get('classificationParameters', [])
+                for param in returned_hs_params:
+                    if param.get('name') == 'hs_code':
+                        returned_code = param.get('value')
+                        if returned_code != hs_code_normalized:
+                            logger.warning(f"⚠️ AvaTax CHANGED HTS code! Sent: {hs_code_normalized}, Received: {returned_code}")
+                        else:
+                            logger.info(f"✓ HTS code matches: {hs_code_normalized}")
+                        break
+            return response_data
         else:
             try:
                 error_data = response.json()
