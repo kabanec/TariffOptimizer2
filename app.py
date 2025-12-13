@@ -31,6 +31,7 @@ CORS(app)
 AVALARA_USERNAME = os.getenv('AVALARA_USERNAME')
 AVALARA_PASSWORD = os.getenv('AVALARA_PASSWORD')
 AVALARA_COMPANY_ID = os.getenv('AVALARA_COMPANY_ID', '2000099295')
+QUOTING_SBX = os.getenv('QUOTING_SBX')  # Sandbox quoting API token
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 AUTH_USER = os.getenv('AUTH_USER', 'Admin')
 AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
@@ -39,6 +40,7 @@ AUTH_PASS = os.getenv('AUTH_PASS', 'Secret_6681940')
 logger.info(f"AVALARA_USERNAME loaded: {bool(AVALARA_USERNAME)}")
 logger.info(f"AVALARA_PASSWORD loaded: {bool(AVALARA_PASSWORD)}")
 logger.info(f"AVALARA_COMPANY_ID: {AVALARA_COMPANY_ID}")
+logger.info(f"QUOTING_SBX loaded: {bool(QUOTING_SBX)}")
 
 # Initialize OpenAI client lazily
 _openai_client = None
@@ -1928,16 +1930,32 @@ def test_avatax():
             if not endpoint_url:
                 return jsonify({'error': 'Invalid endpoint type'}), 400
 
-        if not AVALARA_USERNAME or not AVALARA_PASSWORD:
-            return jsonify({'error': 'Avalara credentials not configured'}), 500
+        # Detect if this is a sandbox endpoint and use appropriate authentication
+        is_sandbox = 'sbx.xbo.avalara.com' in endpoint_url
 
-        # Use Basic Authentication
-        credentials = base64.b64encode(f"{AVALARA_USERNAME}:{AVALARA_PASSWORD}".encode()).decode()
-        headers = {
-            "Authorization": f"Basic {credentials}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        if is_sandbox:
+            # Use QUOTING_SBX token for sandbox endpoints
+            if not QUOTING_SBX:
+                return jsonify({'error': 'QUOTING_SBX token not configured for sandbox endpoint'}), 500
+
+            headers = {
+                "Authorization": f"Basic {QUOTING_SBX}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            logger.info(f"Using QUOTING_SBX token for sandbox endpoint")
+        else:
+            # Use username/password for dev endpoints
+            if not AVALARA_USERNAME or not AVALARA_PASSWORD:
+                return jsonify({'error': 'Avalara credentials not configured'}), 500
+
+            credentials = base64.b64encode(f"{AVALARA_USERNAME}:{AVALARA_PASSWORD}".encode()).decode()
+            headers = {
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            logger.info(f"Using username/password credentials for dev endpoint")
 
         logger.info(f"Testing AvaTax API")
         logger.info(f"URL: {endpoint_url}")
