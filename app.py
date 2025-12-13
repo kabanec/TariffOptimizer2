@@ -1931,7 +1931,7 @@ def test_avatax():
                 return jsonify({'error': 'Invalid endpoint type'}), 400
 
         # Detect if this is a sandbox endpoint and use appropriate authentication
-        is_sandbox = 'sbx.xbo.avalara.com' in endpoint_url
+        is_sandbox = 'quoting-sbx.avalara.io' in endpoint_url or 'sbx.xbo.avalara.com' in endpoint_url
 
         if is_sandbox:
             # Use QUOTING_SBX token for sandbox endpoints
